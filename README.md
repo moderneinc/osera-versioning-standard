@@ -1,0 +1,1 @@
+# osera-versioning-standard
