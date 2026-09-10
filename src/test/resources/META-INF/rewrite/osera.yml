@@ -1,0 +1,16 @@
+type: specs.openrewrite.org/v1beta/recipe
+name: org.finos.osera.UpgradeToPatch
+displayName: Upgrade to a producer's patch
+description: Moves a direct or transitive dependency of a Maven or Gradle build to the newest patch whose version matches the producer's pattern.
+recipeList:
+  - org.openrewrite.java.dependencies.UpgradeDependencyVersion:
+      groupId: '${groupId}'
+      artifactId: '${artifactId}'
+      newVersion: latest.patch
+      versionPattern: '${versionPattern}'
+      overrideManagedVersion: true
+  - org.openrewrite.java.dependencies.UpgradeTransitiveDependencyVersion:
+      groupId: '${groupId}'
+      artifactId: '${artifactId}'
+      version: latest.patch
+      versionPattern: '${versionPattern}'
