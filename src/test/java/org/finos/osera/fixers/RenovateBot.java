@@ -1,13 +1,80 @@
-
 package org.finos.osera.fixers;
 
+import org.finos.osera.providers.MavenCentralCare;
+import org.finos.osera.providers.OseraQualifiedSequence;
 import org.finos.osera.providers.ProviderVersioning;
+import org.finos.osera.providers.SemverV2BuildMetadata;
 import org.openrewrite.Recipe;
+import org.openrewrite.maven.tree.GroupArtifact;
+import org.openrewrite.maven.tree.GroupArtifactVersion;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+
+import static org.finos.osera.fixers.ToolProcess.request;
 
 public final class RenovateBot implements Remediator {
+
+    private static final Path HOME = Path.of(System.getProperty("osera.renovate", "build/renovate"));
+
+    /** Node arrives through a version manager, so it is not necessarily on the PATH this JVM inherited. */
+    private static final String NODE = System.getProperty("osera.node", "node");
+
+    @Override
+    public boolean isInstalled() {
+        return Files.isDirectory(HOME.resolve("node_modules/renovate"));
+    }
+
     @Override
     public Recipe asRecipe(ProviderVersioning versioning) {
-        return null;
+        return new ExternalRemediation(new ExternalRemediation.Tool() {
+            @Override
+            public String name() {
+                return "Renovate";
+            }
+
+            @Override
+            public void run(Path directory, List<Path> files) {
+                boolean maven = files.stream().anyMatch(file -> file.endsWith("pom.xml"));
+                ToolProcess.run(
+                  List.of(NODE, ToolProcess.script("tools/renovate/update.js", directory.getParent()).toString()),
+                  Map.of(
+                    "RENOVATE_HOME", HOME.toAbsolutePath().toString(),
+                    "NODE_EXTRA_CA_CERTS", versioning.repository().certificateBundle().toString()),
+                  request(
+                    "dir", directory.toString(),
+                    "cacheDir", directory.getParent().resolve("renovate-cache").toString(),
+                    // Renovate picks a versioning module per manager, and the two do not agree
+                    // about a patch qualifier. Letting it pick is the point.
+                    "manager", maven ? "maven" : "gradle",
+                    "versioning", maven ? "maven" : "gradle",
+                    "files", files.stream().map(Path::toString).toList(),
+                    "registryUrls", List.of(versioning.repository().url(), MAVEN_CENTRAL),
+                    "targets", targets(versioning)));
+            }
+        });
+    }
+
+    /**
+     * One target per artifact the producer has patched. {@code allowedVersions} is Renovate's own
+     * way to say "only versions on this line count", the same instruction the recipe remediator
+     * gets as a {@code versionPattern}.
+     */
+    private static List<Map<String, Object>> targets(ProviderVersioning versioning) {
+        String allowedVersions = switch (versioning) {
+            case MavenCentralCare _ -> "/-osera$/";
+            case OseraQualifiedSequence _ -> "/-osera-\\d+$/";
+            case SemverV2BuildMetadata _ -> "/\\+osera\\./";
+        };
+        return versioning.repository().published().stream()
+          .map(GroupArtifactVersion::asGroupArtifact)
+          .distinct()
+          .map(patched -> request(
+            "packageName", patched.getGroupId() + ":" + patched.getArtifactId(),
+            "allowedVersions", allowedVersions))
+          .toList();
     }
 
     @Override

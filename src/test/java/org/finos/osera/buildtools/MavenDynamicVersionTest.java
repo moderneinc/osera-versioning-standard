@@ -27,6 +27,7 @@ public record MavenDynamicVersionTest(ProviderVersioning versioning) implements 
             //language=xml
             """
               <project>
+                  <modelVersion>4.0.0</modelVersion>
                   <groupId>org.finos.osera</groupId>
                   <artifactId>osera-test</artifactId>
                   <version>1.0-SNAPSHOT</version>

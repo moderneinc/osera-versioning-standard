@@ -12,6 +12,7 @@ import static java.util.Objects.requireNonNull;
 
 public sealed abstract class ProviderVersioning implements AutoCloseable permits
   MavenCentralCare,
+  OseraQualifiedSequence,
   SemverV2BuildMetadata {
     private final MockMavenRepository repository = new MockMavenRepository();
 

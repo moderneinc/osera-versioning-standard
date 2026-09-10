@@ -20,6 +20,8 @@ import java.security.cert.X509Certificate;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -45,6 +47,7 @@ public final class MockMavenRepository implements AutoCloseable {
     private final Set<GroupArtifactVersion> versions = new LinkedHashSet<>();
     private final HeldCertificate certificate;
     private final Path trustStore;
+    private final Path certificateBundle;
     private final MockWebServer server = new MockWebServer();
 
     public MockMavenRepository() {
@@ -53,6 +56,7 @@ public final class MockMavenRepository implements AutoCloseable {
           .addSubjectAlternativeName("localhost")
           .build();
         trustStore = trustStore(certificate.certificate());
+        certificateBundle = write("mock-maven-repository", ".pem", certificate.certificatePem() + trustedCertificatesPem());
         server.useHttps(new HandshakeCertificates.Builder().heldCertificate(certificate).build().sslSocketFactory());
         server.setDispatcher(new Dispatcher() {
             @Override
@@ -103,9 +107,54 @@ public final class MockMavenRepository implements AutoCloseable {
         return trustStore;
     }
 
+    /**
+     * {@link #trustStore()} in PEM, for the tools that are not JVMs. It has to be the whole bundle,
+     * not just this server's certificate: {@code SSL_CERT_FILE} replaces Ruby's trusted set rather
+     * than adding to it, so a lone certificate would leave Maven Central unverifiable.
+     */
+    public Path certificateBundle() {
+        return certificateBundle;
+    }
+
+    private static String trustedCertificatesPem() {
+        StringBuilder pem = new StringBuilder();
+        try {
+            KeyStore store = cacerts();
+            for (String alias : Collections.list(store.aliases())) {
+                if (store.getCertificate(alias) instanceof X509Certificate trusted) {
+                    pem.append("-----BEGIN CERTIFICATE-----\n")
+                      .append(Base64.getMimeEncoder(64, new byte[]{'\n'}).encodeToString(trusted.getEncoded()))
+                      .append("\n-----END CERTIFICATE-----\n");
+                }
+            }
+        } catch (GeneralSecurityException e) {
+            throw new IllegalStateException(e);
+        }
+        return pem.toString();
+    }
+
+    private static Path write(String prefix, String suffix, String content) {
+        try {
+            Path path = Files.createTempFile(prefix, suffix);
+            Files.writeString(path, content);
+            return path;
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static KeyStore cacerts() throws GeneralSecurityException {
+        try {
+            return KeyStore.getInstance(Path.of(System.getProperty("java.home"), "lib", "security", "cacerts").toFile(),
+              TRUST_STORE_PASSWORD.toCharArray());
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
     private static Path trustStore(X509Certificate certificate) {
         try {
-            KeyStore store = KeyStore.getInstance(Path.of(System.getProperty("java.home"), "lib", "security", "cacerts").toFile(), TRUST_STORE_PASSWORD.toCharArray());
+            KeyStore store = cacerts();
             store.setCertificateEntry("mock-maven-repository", certificate);
             Path path = Files.createTempFile("mock-maven-repository", ".p12");
             try (OutputStream out = Files.newOutputStream(path)) {
@@ -193,6 +242,7 @@ public final class MockMavenRepository implements AutoCloseable {
         server.close();
         try {
             Files.deleteIfExists(trustStore);
+            Files.deleteIfExists(certificateBundle);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

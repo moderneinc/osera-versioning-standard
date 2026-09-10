@@ -74,7 +74,7 @@ val tck by tasks.registering {
 }
 tasks.check { dependsOn(tck) }
 
-listOf("MavenCentralCare", "SemverV2BuildMetadata").forEach { scheme ->
+listOf("MavenCentralCare", "OseraQualifiedSequence", "SemverV2BuildMetadata").forEach { scheme ->
     val run = tasks.register<Test>("tck$scheme") {
         description = "Runs the backpatch TCK against $scheme"
         group = "verification"
@@ -94,4 +94,75 @@ listOf("MavenCentralCare", "SemverV2BuildMetadata").forEach { scheme ->
 // The Gradle running the TCK also drives the tooling models behind GradleTest.
 tasks.withType<Test>().configureEach {
     systemProperty("org.openrewrite.test.gradleVersion", gradle.gradleVersion)
+}
+
+// Renovate and Dependabot are not JVM tools and are not on Maven Central. They are installed by
+// their own package managers under build/, and the cells that need them are skipped when the
+// toolchain is absent rather than reported as a failed remediation.
+val renovateVersion = "41.173.1"
+val dependabotVersion = "0.394.0"
+val renovateHome = layout.buildDirectory.dir("renovate")
+val dependabotGems = layout.buildDirectory.dir("dependabot/gems")
+
+// Node arrives through a version manager and Ruby through Homebrew, so neither is on the daemon's
+// PATH. A login shell knows where they are; -Posera.<tool> overrides when it doesn't.
+fun locate(command: String): String? =
+    if (command.startsWith("/")) command.takeIf { File(it).canExecute() }
+    else runCatching {
+        val shell = System.getenv("SHELL") ?: "/bin/sh"
+        val process = ProcessBuilder(shell, "-lc", "command -v $command").start()
+        process.inputStream.bufferedReader().readText().trim().takeIf { process.waitFor() == 0 && it.isNotEmpty() }
+    }.getOrNull()
+
+fun tool(name: String, vararg candidates: String) = providers.gradleProperty("osera.$name")
+    .orElse(providers.provider { candidates.firstNotNullOfOrNull(::locate) })
+
+val node = tool("node", "node")
+val npm = tool("npm", "npm")
+val ruby = tool("ruby", "/usr/local/opt/ruby/bin/ruby", "/opt/homebrew/opt/ruby/bin/ruby", "ruby")
+
+val installRenovate by tasks.registering(Exec::class) {
+    description = "Installs Renovate, one half of the remediation matrix that is not a recipe"
+    onlyIf { npm.isPresent }
+    outputs.dir(renovateHome)
+    workingDir(renovateHome)
+    doFirst {
+        // Without a manifest of its own, npm walks up the tree, finds one that has nothing to do
+        // with this, and reports itself up to date having installed nothing.
+        val home = renovateHome.get().asFile
+        home.mkdirs()
+        home.resolve("package.json").writeText(
+            """
+            {
+              "name": "osera-renovate",
+              "private": true,
+              "dependencies": { "renovate": "$renovateVersion" }
+            }
+            """.trimIndent()
+        )
+    }
+    commandLine(npm.getOrElse("npm"), "install", "--silent", "--no-audit", "--no-fund")
+}
+
+val installDependabot by tasks.registering(Exec::class) {
+    description = "Installs Dependabot's Maven and Gradle gems, the other half"
+    onlyIf { ruby.isPresent }
+    outputs.dir(dependabotGems)
+    environment("GEM_HOME", dependabotGems.get().asFile.absolutePath)
+    // The gem next to the chosen ruby, not whichever one is first on the path.
+    commandLine(
+        ruby.map { File(File(it).parentFile, "gem").path }.getOrElse("gem"),
+        "install", "--no-document", "--silent",
+        "dependabot-maven:$dependabotVersion", "dependabot-gradle:$dependabotVersion"
+    )
+}
+
+tasks.withType<Test>().configureEach {
+    dependsOn(installRenovate, installDependabot)
+    systemProperty("osera.renovate", renovateHome.get().asFile.absolutePath)
+    systemProperty("osera.dependabot", dependabotGems.get().asFile.absolutePath)
+    // What each external tool decided, in its own words, next to the report that summarises it.
+    systemProperty("osera.tools.log", layout.buildDirectory.dir("tool-logs").get().asFile.absolutePath)
+    node.orNull?.let { systemProperty("osera.node", it) }
+    ruby.orNull?.let { systemProperty("osera.ruby", it) }
 }

@@ -22,6 +22,7 @@ public record MavenTest(ProviderVersioning versioning) implements MavenBuild {
             //language=xml
             """
               <project>
+                  <modelVersion>4.0.0</modelVersion>
                   <groupId>org.finos.osera</groupId>
                   <artifactId>osera-test</artifactId>
                   <version>1.0-SNAPSHOT</version>
@@ -37,6 +38,7 @@ public record MavenTest(ProviderVersioning versioning) implements MavenBuild {
             //language=xml
             """
               <project>
+                  <modelVersion>4.0.0</modelVersion>
                   <groupId>org.finos.osera</groupId>
                   <artifactId>osera-test</artifactId>
                   <version>1.0-SNAPSHOT</version>
@@ -62,6 +64,7 @@ public record MavenTest(ProviderVersioning versioning) implements MavenBuild {
             //language=xml
             """
               <project>
+                  <modelVersion>4.0.0</modelVersion>
                   <groupId>org.finos.osera</groupId>
                   <artifactId>osera-test</artifactId>
                   <version>1.0-SNAPSHOT</version>
@@ -77,6 +80,7 @@ public record MavenTest(ProviderVersioning versioning) implements MavenBuild {
             //language=xml
             """
               <project>
+                  <modelVersion>4.0.0</modelVersion>
                   <groupId>org.finos.osera</groupId>
                   <artifactId>osera-test</artifactId>
                   <version>1.0-SNAPSHOT</version>
@@ -115,6 +119,7 @@ public record MavenTest(ProviderVersioning versioning) implements MavenBuild {
             //language=xml
             """
               <project>
+                  <modelVersion>4.0.0</modelVersion>
                   <groupId>org.finos.osera</groupId>
                   <artifactId>osera-test</artifactId>
                   <version>1.0-SNAPSHOT</version>
@@ -133,6 +138,7 @@ public record MavenTest(ProviderVersioning versioning) implements MavenBuild {
             //language=xml
             """
               <project>
+                  <modelVersion>4.0.0</modelVersion>
                   <groupId>org.finos.osera</groupId>
                   <artifactId>osera-test</artifactId>
                   <version>1.0-SNAPSHOT</version>
@@ -162,6 +168,7 @@ public record MavenTest(ProviderVersioning versioning) implements MavenBuild {
             //language=xml
             """
               <project>
+                  <modelVersion>4.0.0</modelVersion>
                   <groupId>org.finos.osera</groupId>
                   <artifactId>osera-test</artifactId>
                   <version>1.0-SNAPSHOT</version>
@@ -185,6 +192,7 @@ public record MavenTest(ProviderVersioning versioning) implements MavenBuild {
             //language=xml
             """
               <project>
+                  <modelVersion>4.0.0</modelVersion>
                   <groupId>org.finos.osera</groupId>
                   <artifactId>osera-test</artifactId>
                   <version>1.0-SNAPSHOT</version>
@@ -222,6 +230,7 @@ public record MavenTest(ProviderVersioning versioning) implements MavenBuild {
             //language=xml
             """
               <project>
+                  <modelVersion>4.0.0</modelVersion>
                   <groupId>org.finos.osera</groupId>
                   <artifactId>osera-test</artifactId>
                   <version>1.0-SNAPSHOT</version>
@@ -247,6 +256,7 @@ public record MavenTest(ProviderVersioning versioning) implements MavenBuild {
             //language=xml
             """
               <project>
+                  <modelVersion>4.0.0</modelVersion>
                   <groupId>org.finos.osera</groupId>
                   <artifactId>osera-test</artifactId>
                   <version>1.0-SNAPSHOT</version>
@@ -284,6 +294,7 @@ public record MavenTest(ProviderVersioning versioning) implements MavenBuild {
             //language=xml
             """
               <project>
+                  <modelVersion>4.0.0</modelVersion>
                   <groupId>org.finos.osera</groupId>
                   <artifactId>osera-test</artifactId>
                   <version>1.0-SNAPSHOT</version>
@@ -308,6 +319,7 @@ public record MavenTest(ProviderVersioning versioning) implements MavenBuild {
             //language=xml
             """
               <project>
+                  <modelVersion>4.0.0</modelVersion>
                   <groupId>org.finos.osera</groupId>
                   <artifactId>osera-test</artifactId>
                   <version>1.0-SNAPSHOT</version>
@@ -346,6 +358,7 @@ public record MavenTest(ProviderVersioning versioning) implements MavenBuild {
             //language=xml
             """
               <project>
+                  <modelVersion>4.0.0</modelVersion>
                   <groupId>org.finos.osera</groupId>
                   <artifactId>osera-parent</artifactId>
                   <version>1.0-SNAPSHOT</version>
@@ -370,6 +383,7 @@ public record MavenTest(ProviderVersioning versioning) implements MavenBuild {
             //language=xml
             """
               <project>
+                  <modelVersion>4.0.0</modelVersion>
                   <groupId>org.finos.osera</groupId>
                   <artifactId>osera-parent</artifactId>
                   <version>1.0-SNAPSHOT</version>
@@ -398,6 +412,7 @@ public record MavenTest(ProviderVersioning versioning) implements MavenBuild {
               //language=xml
               """
                 <project>
+                    <modelVersion>4.0.0</modelVersion>
                     <parent>
                         <groupId>org.finos.osera</groupId>
                         <artifactId>osera-parent</artifactId>
@@ -415,6 +430,7 @@ public record MavenTest(ProviderVersioning versioning) implements MavenBuild {
               //language=xml
               """
                 <project>
+                    <modelVersion>4.0.0</modelVersion>
                     <parent>
                         <groupId>org.finos.osera</groupId>
                         <artifactId>osera-parent</artifactId>
@@ -451,6 +467,7 @@ public record MavenTest(ProviderVersioning versioning) implements MavenBuild {
             //language=xml
             """
               <project>
+                  <modelVersion>4.0.0</modelVersion>
                   <parent>
                       <groupId>org.springframework.boot</groupId>
                       <artifactId>spring-boot-starter-parent</artifactId>
@@ -470,6 +487,7 @@ public record MavenTest(ProviderVersioning versioning) implements MavenBuild {
             //language=xml
             """
               <project>
+                  <modelVersion>4.0.0</modelVersion>
                   <parent>
                       <groupId>org.springframework.boot</groupId>
                       <artifactId>spring-boot-starter-parent</artifactId>
