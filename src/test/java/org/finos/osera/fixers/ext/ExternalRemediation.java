@@ -1,4 +1,4 @@
-package org.finos.osera.fixers;
+package org.finos.osera.fixers.ext;
 
 import org.jspecify.annotations.Nullable;
 import org.openrewrite.ExecutionContext;
@@ -92,7 +92,7 @@ public final class ExternalRemediation extends ScanningRecipe<ExternalRemediatio
     }
 
     /** The sources under test, and the one run of the tool over them that a cycle is allowed. */
-    static final class Sources {
+    public static final class Sources {
         private final Tool tool;
         private final Map<Path, SourceFile> before = new LinkedHashMap<>();
         private @Nullable Map<Path, SourceFile> after;

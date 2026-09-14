@@ -7,8 +7,8 @@ import org.junit.platform.suite.api.Suite;
 @SelectPackages("org.finos.osera")
 public final class SemverV2BuildMetadata extends ProviderVersioning {
     @Override
-    protected String version(String version, int patchSequence) {
-        return version + "+osera." + patchSequence;
+    protected String version(String version, String producer, int patchSequence) {
+        return "%s+%s.%d".formatted(version, producer, patchSequence);
     }
 
     @Override

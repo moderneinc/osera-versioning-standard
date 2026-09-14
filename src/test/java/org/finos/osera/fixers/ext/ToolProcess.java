@@ -1,4 +1,4 @@
-package org.finos.osera.fixers;
+package org.finos.osera.fixers.ext;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jspecify.annotations.Nullable;
@@ -19,7 +19,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * Runs one of the non-JVM remediation tools: a script, a JSON request on its stdin, and a working
  * directory it is expected to rewrite in place.
  */
-final class ToolProcess {
+public final class ToolProcess {
 
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final long TIMEOUT_SECONDS = 300;
@@ -31,7 +31,7 @@ final class ToolProcess {
     }
 
     /** The script, extracted from the test resources so it travels with the TCK rather than the install. */
-    static Path script(String resource, Path directory) {
+    public static Path script(String resource, Path directory) {
         try (InputStream in = ToolProcess.class.getClassLoader().getResourceAsStream(resource)) {
             if (in == null) {
                 throw new IllegalStateException("Missing script resource " + resource);
@@ -44,7 +44,7 @@ final class ToolProcess {
         }
     }
 
-    static void run(List<String> command, Map<String, String> environment, Map<String, Object> request) {
+    public static void run(List<String> command, Map<String, String> environment, Map<String, Object> request) {
         try {
             ProcessBuilder builder = new ProcessBuilder(command).redirectErrorStream(true);
             builder.environment().putAll(environment);
@@ -78,7 +78,7 @@ final class ToolProcess {
           JSON.writerWithDefaultPrettyPrinter().writeValueAsString(request) + "\n" + output + "\n");
     }
 
-    static Map<String, Object> request(Object... keysAndValues) {
+    public static Map<String, Object> request(Object... keysAndValues) {
         Map<String, Object> request = new LinkedHashMap<>();
         for (int i = 0; i < keysAndValues.length; i += 2) {
             request.put((String) keysAndValues[i], keysAndValues[i + 1]);

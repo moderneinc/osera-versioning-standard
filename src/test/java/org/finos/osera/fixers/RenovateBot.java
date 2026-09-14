@@ -1,11 +1,11 @@
 package org.finos.osera.fixers;
 
-import org.finos.osera.providers.MavenCentralCare;
-import org.finos.osera.providers.OseraQualifiedSequence;
+import org.finos.osera.fixers.ext.ExternalRemediation;
+import org.finos.osera.fixers.ext.ToolProcess;
+import org.finos.osera.providers.OseraMavenCentralCare;
 import org.finos.osera.providers.ProviderVersioning;
 import org.finos.osera.providers.SemverV2BuildMetadata;
 import org.openrewrite.Recipe;
-import org.openrewrite.maven.tree.GroupArtifact;
 import org.openrewrite.maven.tree.GroupArtifactVersion;
 
 import java.nio.file.Files;
@@ -13,7 +13,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
-import static org.finos.osera.fixers.ToolProcess.request;
+import static org.finos.osera.fixers.ext.ToolProcess.request;
 
 public final class RenovateBot implements Remediator {
 
@@ -64,8 +64,7 @@ public final class RenovateBot implements Remediator {
      */
     private static List<Map<String, Object>> targets(ProviderVersioning versioning) {
         String allowedVersions = switch (versioning) {
-            case MavenCentralCare _ -> "/-osera$/";
-            case OseraQualifiedSequence _ -> "/-osera-\\d+$/";
+            case OseraMavenCentralCare _ -> "/-osera-\\d+$/";
             case SemverV2BuildMetadata _ -> "/\\+osera\\./";
         };
         return versioning.repository().published().stream()

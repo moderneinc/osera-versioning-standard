@@ -74,7 +74,7 @@ val tck by tasks.registering {
 }
 tasks.check { dependsOn(tck) }
 
-listOf("MavenCentralCare", "OseraQualifiedSequence", "SemverV2BuildMetadata").forEach { scheme ->
+listOf("OseraMavenCentralCare", "SemverV2BuildMetadata").forEach { scheme ->
     val run = tasks.register<Test>("tck$scheme") {
         description = "Runs the backpatch TCK against $scheme"
         group = "verification"

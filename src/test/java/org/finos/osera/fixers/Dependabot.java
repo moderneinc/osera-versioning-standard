@@ -1,20 +1,22 @@
 package org.finos.osera.fixers;
 
+import org.finos.osera.fixers.ext.ExternalRemediation;
+import org.finos.osera.fixers.ext.ToolProcess;
 import org.finos.osera.providers.ProviderVersioning;
 import org.openrewrite.Recipe;
-import org.openrewrite.maven.tree.GroupArtifactVersion;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
-import static org.finos.osera.fixers.ToolProcess.request;
+import static java.util.Objects.requireNonNull;
+import static org.finos.osera.fixers.ext.ToolProcess.request;
 
 /**
  * Dependabot's Maven and Gradle update checkers require a candidate's version suffix to equal the
  * current version's ({@code Shared::SharedVersionFinder#suffix_compatible?}), so a dependency at
- * an unqualified release is never offered a qualified one. That rules out every spelling a producer
+ * an unqualified release is never offered a qualified one. That rules out every version a producer
  * could choose, {@code -osera}, {@code -osera-00001} and {@code +osera.1} alike, before its
  * ordering is ever consulted.
  */
@@ -22,7 +24,9 @@ public final class Dependabot implements Remediator {
 
     private static final Path GEMS = Path.of(System.getProperty("osera.dependabot", "build/dependabot/gems"));
 
-    /** The system Ruby on macOS is 2.6 and too old for the gems; {@code -Dosera.ruby} names a newer one. */
+    /**
+     * The system Ruby on macOS is 2.6 and too old for the gems; {@code -Dosera.ruby} names a newer one.
+     */
     private static final String RUBY = System.getProperty("osera.ruby", "ruby");
 
     @Override
@@ -67,7 +71,7 @@ public final class Dependabot implements Remediator {
         return versioning.repository().published().stream()
           .map(patched -> request(
             "packageName", patched.getGroupId() + ":" + patched.getArtifactId(),
-            "ceiling", patched.getVersion()))
+            "ceiling", requireNonNull(patched.getVersion())))
           .toList();
     }
 

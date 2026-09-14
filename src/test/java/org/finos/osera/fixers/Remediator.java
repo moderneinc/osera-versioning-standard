@@ -1,6 +1,7 @@
 package org.finos.osera.fixers;
 
 import org.finos.osera.ProviderVersioningResolver;
+import org.finos.osera.fixers.ext.ExternalRemediation;
 import org.finos.osera.providers.ProviderVersioning;
 import org.openrewrite.Recipe;
 import org.openrewrite.test.RecipeSpec;

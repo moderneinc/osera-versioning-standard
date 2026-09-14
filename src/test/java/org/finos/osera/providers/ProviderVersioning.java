@@ -10,16 +10,21 @@ import java.util.function.UnaryOperator;
 
 import static java.util.Objects.requireNonNull;
 
-public sealed abstract class ProviderVersioning implements AutoCloseable permits
-  MavenCentralCare,
-  OseraQualifiedSequence,
+public sealed abstract class ProviderVersioning permits
+  OseraMavenCentralCare,
   SemverV2BuildMetadata {
+
+    /**
+     * The producer every test speaks for unless it is asking what happens when there are several.
+     */
+    public static final String OSERA = "osera";
+
     private final MockMavenRepository repository = new MockMavenRepository();
 
     public final <T extends SourceFile> Consumer<SourceSpec<T>> patch(GroupArtifactVersion gav) {
         return patch(gav, 1);
     }
-    
+
     /**
      * Publishes a patch of the artifact to the mock repository and expects the {@code PATCH_ME}
      * placeholder in the test's expected source to become its version. The placeholder keeps that
@@ -33,7 +38,7 @@ public sealed abstract class ProviderVersioning implements AutoCloseable permits
     public final <T extends SourceFile> Consumer<SourceSpec<T>> patch(GroupArtifactVersion gav, int patchSequence) {
         String patched = publish(gav, patchSequence);
         return spec -> {
-            UnaryOperator<String> after = requireNonNull(spec.getAfter(), 
+            UnaryOperator<String> after = requireNonNull(spec.getAfter(),
               "patch() needs an expected source containing PATCH_ME");
             spec.after(actual -> after.apply(actual).replace("PATCH_ME", patched));
         };
@@ -50,19 +55,25 @@ public sealed abstract class ProviderVersioning implements AutoCloseable permits
      * @return The version the patch was published at.
      */
     public final String publish(GroupArtifactVersion gav, int patchSequence) {
-        String patched = version(requireNonNull(gav.getVersion()), patchSequence);
+        return publish(gav, OSERA, patchSequence);
+    }
+
+    /**
+     * As {@link #publish(GroupArtifactVersion, int)}, for a producer that is not OSERA.
+     */
+    public final String publish(GroupArtifactVersion gav, String producer, int patchSequence) {
+        String patched = version(requireNonNull(gav.getVersion()), producer, patchSequence);
         repository.publish(gav.withVersion(patched));
         return patched;
     }
 
-    protected abstract String version(String version, int patchSequence);
+    /**
+     * @param producer Who published the patch. Every scheme carries this token, and when two
+     *                 producers patch the same release it is the only thing separating them.
+     */
+    protected abstract String version(String version, String producer, int patchSequence);
 
     public MockMavenRepository repository() {
         return repository;
-    }
-
-    @Override
-    public void close() {
-        repository.close();
     }
 }

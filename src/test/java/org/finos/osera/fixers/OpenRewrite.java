@@ -1,7 +1,6 @@
 package org.finos.osera.fixers;
 
-import org.finos.osera.providers.MavenCentralCare;
-import org.finos.osera.providers.OseraQualifiedSequence;
+import org.finos.osera.providers.OseraMavenCentralCare;
 import org.finos.osera.providers.ProviderVersioning;
 import org.finos.osera.providers.SemverV2BuildMetadata;
 import org.openrewrite.Recipe;
@@ -16,14 +15,10 @@ import java.util.Properties;
 public final class OpenRewrite implements Remediator {
     @Override
     public Recipe asRecipe(ProviderVersioning versioning) {
-        // Without a pattern, OpenRewrite reads any qualifier as a pre-release and never selects a patch.
         String versionPattern = switch (versioning) {
-            case MavenCentralCare _ -> "-osera";
-            case OseraQualifiedSequence _ -> "-osera-\\d+";
-            case SemverV2BuildMetadata _ -> "\\+osera.*";
+            case OseraMavenCentralCare _ -> "(\\.[A-Za-z]\\w*)?-osera-\\d+";
+            case SemverV2BuildMetadata _ -> "(\\.[A-Za-z]\\w*)?\\+osera.*";
         };
-        // One activation per patched artifact: the Gradle transitive recipe skips any configuration
-        // whose direct dependencies match its pattern, so a wildcard would match the declaring dependency itself.
         return new CompositeRecipe(versioning.repository().published().stream()
           .map(GroupArtifactVersion::asGroupArtifact)
           .distinct()

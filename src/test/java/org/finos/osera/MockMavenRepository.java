@@ -20,11 +20,7 @@ import java.security.cert.X509Certificate;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.Base64;
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
@@ -39,7 +35,7 @@ import static java.util.stream.Collectors.joining;
  * A Maven 2 repository layout served over HTTPS with a self-signed certificate, standing in for
  * Maven Central or a producer's patch repository for whichever tool is under test.
  */
-public final class MockMavenRepository implements AutoCloseable {
+public final class MockMavenRepository {
 
     public static final String TRUST_STORE_PASSWORD = "changeit";
 
@@ -97,12 +93,16 @@ public final class MockMavenRepository implements AutoCloseable {
         return certificate.certificate();
     }
 
-    /** Everything published so far, in order; what a producer would advertise to remediation tools. */
+    /**
+     * Everything published so far, in order; what a producer would advertise to remediation tools.
+     */
     public Set<GroupArtifactVersion> published() {
         return Set.copyOf(versions);
     }
 
-    /** The JDK's own truststore plus {@link #certificate()}, for JVMs a test spawns; password {@link #TRUST_STORE_PASSWORD}. */
+    /**
+     * The JDK's own truststore plus {@link #certificate()}, for JVMs a test spawns; password {@link #TRUST_STORE_PASSWORD}.
+     */
     public Path trustStore() {
         return trustStore;
     }
@@ -235,17 +235,6 @@ public final class MockMavenRepository implements AutoCloseable {
 
     public void put(String path, String content) {
         put(path, content.getBytes(UTF_8));
-    }
-
-    @Override
-    public void close() {
-        server.close();
-        try {
-            Files.deleteIfExists(trustStore);
-            Files.deleteIfExists(certificateBundle);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
     }
 
     private record Bytes(byte[] content) implements MockResponseBody {
