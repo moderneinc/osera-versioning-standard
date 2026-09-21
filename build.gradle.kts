@@ -53,6 +53,7 @@ dependencies {
     testImplementation("org.jspecify:jspecify:latest.release")
     testImplementation("com.squareup.okhttp3:mockwebserver3:latest.release")
     testImplementation("com.squareup.okhttp3:okhttp-tls:latest.release")
+    testImplementation("org.apache.commons:commons-compress:latest.release")
     // Real Gradle builds behind GradleTest's markers; the model compiles against gradleApi(), so we supply it too.
     testImplementation("org.openrewrite.gradle.tooling:model:latest.integration")
     testImplementation(gradleApi())
