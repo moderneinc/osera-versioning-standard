@@ -162,6 +162,13 @@ val installDependabot by tasks.registering(Exec::class) {
 }
 
 tasks.withType<Test>().configureEach {
+    // npm's own resolution, and the npx that starts the recipe's RPC server, read config from the
+    // file named here. MockNpmRegistry writes its URL into it once it has a port; the path has to
+    // be fixed because the environment of a child process cannot be changed after the JVM starts.
+    val npmrc = layout.buildDirectory.file("npm/osera.npmrc").get().asFile
+    doFirst { npmrc.parentFile.mkdirs() }
+    systemProperty("osera.npmrc", npmrc.absolutePath)
+    environment("npm_config_userconfig", npmrc.absolutePath)
     dependsOn(installRenovate, installDependabot)
     systemProperty("osera.renovate", renovateHome.get().asFile.absolutePath)
     systemProperty("osera.dependabot", dependabotGems.get().asFile.absolutePath)
