@@ -92,9 +92,16 @@ public final class MockNpmRegistry {
         }
     }
 
-    /** The registry base URL, ending in a slash. */
+    /**
+     * The registry base URL, ending in a slash.
+     *
+     * <p>Addressed by literal IPv4 rather than by name. {@code localhost} resolves to {@code ::1}
+     * first on this platform while the server listens on IPv4, and a client that prefers the IPv6
+     * answer does not fail fast: Dependabot reports it as {@code PrivateSourceTimedOut}, which
+     * reads like an unreachable registry rather than a name that resolved the wrong way.
+     */
     public String url() {
-        return server.url("/").toString();
+        return server.url("/").toString().replace("://localhost:", "://127.0.0.1:");
     }
 
     /** The npm config file the build has pointed child processes at. */

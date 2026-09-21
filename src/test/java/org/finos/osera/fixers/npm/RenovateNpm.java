@@ -52,7 +52,7 @@ public sealed interface RenovateNpm extends NpmRemediator permits RenovateNpm.St
             public void run(Path directory, List<Path> files) {
                 ToolProcess.run(
                   List.of(NODE, ToolProcess.script("tools/renovate/update.js", directory.getParent()).toString()),
-                  Map.of(),
+                  Map.of("RENOVATE_HOME", HOME.toAbsolutePath().toString()),
                   request(
                     "dir", directory.toString(),
                     "cacheDir", directory.getParent().resolve("renovate-cache").toString(),

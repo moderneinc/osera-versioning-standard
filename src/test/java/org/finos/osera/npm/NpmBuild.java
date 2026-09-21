@@ -26,7 +26,11 @@ public interface NpmBuild extends RewriteTest {
     }
 
     default ExecutionContext npmContext() {
-        ExecutionContext ctx = new InMemoryExecutionContext();
+        // The default handler swallows what a recipe throws, so a remediation tool that crashes
+        // would be recorded as one that declined to act. Those are opposite measurements.
+        ExecutionContext ctx = new InMemoryExecutionContext(t -> {
+            throw t instanceof RuntimeException runtime ? runtime : new IllegalStateException(t);
+        });
         NodeExecutionContextView.view(ctx).setRegistries(List.of(new NodeRegistry(
           null, versioning().registry().url(),
           null, null, null, null,
