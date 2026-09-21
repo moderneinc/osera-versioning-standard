@@ -64,6 +64,10 @@ public final class MockNpmRegistry {
     }
 
     private final Map<String, Set<String>> versions = new ConcurrentHashMap<>();
+    // A packument names every version, and building one meant rebuilding every tarball and hashing
+    // it twice. That is fast enough once and slow enough at thirty packages to have npm time out.
+    private final Map<String, byte[]> tarballs = new ConcurrentHashMap<>();
+    private final Map<String, String> documents = new ConcurrentHashMap<>();
     private final MockWebServer server = new MockWebServer();
     private final HttpClient upstream = HttpClient.newBuilder()
       .followRedirects(HttpClient.Redirect.NORMAL)
@@ -134,7 +138,7 @@ public final class MockNpmRegistry {
             if (withoutSlash.startsWith(tarballPrefix) && withoutSlash.endsWith(".tgz")) {
                 String version = withoutSlash.substring(tarballPrefix.length(), withoutSlash.length() - 4);
                 return held(name, version) ?
-                  new MockResponse.Builder().body(new Bytes(Tarball.of(name, version))).build() :
+                  new MockResponse.Builder().body(new Bytes(tarball(name, version))).build() :
                   new MockResponse.Builder().code(404).build();
             }
             if (withoutSlash.startsWith(name + "/")) {
@@ -179,8 +183,16 @@ public final class MockNpmRegistry {
         return versions.getOrDefault(name, Set.of()).stream().sorted(SemverOrder.INSTANCE).toList();
     }
 
+    private byte[] tarball(String name, String version) {
+        return tarballs.computeIfAbsent(name + "@" + version, ignored -> Tarball.of(name, version));
+    }
+
     private String versionDocument(String name, String version) {
-        byte[] tarball = Tarball.of(name, version);
+        return documents.computeIfAbsent(name + "@" + version, ignored -> buildVersionDocument(name, version));
+    }
+
+    private String buildVersionDocument(String name, String version) {
+        byte[] tarball = tarball(name, version);
         return """
           {
             "name": "%s",

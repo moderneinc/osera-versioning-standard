@@ -77,17 +77,22 @@ val tck by tasks.registering {
 }
 tasks.check { dependsOn(tck) }
 
-listOf("OseraMavenCentralCare", "SemverV2BuildMetadata").forEach { scheme ->
-    val run = tasks.register<Test>("tck$scheme") {
-        description = "Runs the backpatch TCK against $scheme"
+listOf(
+    "providers.OseraMavenCentralCare",
+    "providers.SemverV2BuildMetadata",
+    "providers.npm.NextPatchPrerelease"
+).forEach { scheme ->
+    val name = scheme.substringAfterLast('.')
+    val run = tasks.register<Test>("tck$name") {
+        description = "Runs the backpatch TCK against $name"
         group = "verification"
         testClassesDirs = sourceSets.test.get().output.classesDirs
         classpath = sourceSets.test.get().runtimeClasspath
         useJUnitPlatform()
         maxHeapSize = "2g"
-        filter.includeTestsMatching("org.finos.osera.providers.$scheme")
-        reports.html.outputLocation = layout.buildDirectory.dir("reports/tck/$scheme")
-        reports.junitXml.outputLocation = layout.buildDirectory.dir("test-results/tck/$scheme")
+        filter.includeTestsMatching("org.finos.osera.$scheme")
+        reports.html.outputLocation = layout.buildDirectory.dir("reports/tck/$name")
+        reports.junitXml.outputLocation = layout.buildDirectory.dir("test-results/tck/$name")
         // Failures are the evaluation, not a broken build.
         ignoreFailures = true
     }
@@ -147,9 +152,18 @@ val installRenovate by tasks.registering(Exec::class) {
     commandLine(npm.getOrElse("npm"), "install", "--silent", "--no-audit", "--no-fund")
 }
 
+// macOS ships Ruby 2.6, which the Dependabot gems reject. Testing only that a ruby exists lets the
+// gem install fail the whole build rather than skipping the cells it feeds.
+fun rubyIsUsable(path: String): Boolean = runCatching {
+    ProcessBuilder(path, "-e", "exit(RUBY_VERSION.split('.')[0].to_i >= 3 ? 0 : 1)")
+        .redirectErrorStream(true)
+        .start()
+        .let { it.inputStream.readAllBytes(); it.waitFor() == 0 }
+}.getOrDefault(false)
+
 val installDependabot by tasks.registering(Exec::class) {
-    description = "Installs Dependabot's Maven and Gradle gems, the other half"
-    onlyIf { ruby.isPresent }
+    description = "Installs Dependabot's Maven, Gradle and npm gems, the other half"
+    onlyIf { ruby.isPresent && rubyIsUsable(ruby.get()) }
     outputs.dir(dependabotGems)
     environment("GEM_HOME", dependabotGems.get().asFile.absolutePath)
     // The gem next to the chosen ruby, not whichever one is first on the path.
