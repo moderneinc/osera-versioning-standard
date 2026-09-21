@@ -18,13 +18,11 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -40,28 +38,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 public final class MockNpmRegistry {
 
     private static final String UPSTREAM = "https://registry.npmjs.org";
-
-    /**
-     * A workspace cached by a previous run resolves against a port nothing is listening on any
-     * more, and {@code DependencyWorkspace} keys its cache on the manifest alone, so it cannot
-     * tell. Clearing once per JVM is the cheapest correct answer.
-     */
-    static {
-        Path workspaces = Path.of(System.getProperty("java.io.tmpdir"), "openrewrite-js-workspaces");
-        if (Files.isDirectory(workspaces)) {
-            try (Stream<Path> paths = Files.walk(workspaces)) {
-                paths.sorted(Comparator.reverseOrder()).forEach(path -> {
-                    try {
-                        Files.deleteIfExists(path);
-                    } catch (IOException ignored) {
-                        // A workspace another JVM is mid-install in; it owns its own cleanup.
-                    }
-                });
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-        }
-    }
 
     private final Map<String, Set<String>> versions = new ConcurrentHashMap<>();
     // A packument names every version, and building one meant rebuilding every tarball and hashing
@@ -83,10 +59,11 @@ public final class MockNpmRegistry {
         });
         try {
             server.start();
-            // Child processes (npm, and the npx that starts the recipe's RPC server) read npm
-            // config from the file named by npm_config_userconfig, which the build points here.
-            // The path is fixed because a child's environment cannot be changed after the JVM
-            // starts; the content is written once a port exists.
+            // The npm processes that measure real resolution read the file named by
+            // npm_config_userconfig, which the build points here. Each of those writes its own
+            // project .npmrc naming this registry, so this file's job is only to neutralise
+            // whatever the developer has in ~/.npmrc; the path is fixed because a child's
+            // environment cannot be changed after the JVM starts.
             String configured = System.getProperty("osera.npmrc");
             npmrc = configured != null ? Path.of(configured) : Files.createTempFile("osera", ".npmrc");
             Files.createDirectories(npmrc.toAbsolutePath().getParent());
@@ -106,11 +83,6 @@ public final class MockNpmRegistry {
      */
     public String url() {
         return server.url("/").toString().replace("://localhost:", "://127.0.0.1:");
-    }
-
-    /** The npm config file the build has pointed child processes at. */
-    public Path npmrc() {
-        return npmrc;
     }
 
     /** Adds a version. Takes effect on the next request; the port does not move. */

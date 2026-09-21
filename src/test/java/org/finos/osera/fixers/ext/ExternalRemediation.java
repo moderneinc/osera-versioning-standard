@@ -9,7 +9,6 @@ import org.openrewrite.Tree;
 import org.openrewrite.TreeVisitor;
 import org.openrewrite.gradle.GradleParser;
 import org.openrewrite.groovy.tree.G;
-import org.openrewrite.javascript.PackageJsonParser;
 import org.openrewrite.json.JsonParser;
 import org.openrewrite.json.tree.Json;
 import org.openrewrite.kotlin.tree.K;
@@ -194,9 +193,8 @@ public final class ExternalRemediation extends ScanningRecipe<ExternalRemediatio
             // A pom without its resolution result is not something the Maven assertions accept.
             case Xml.Document ignored when source.getSourcePath().endsWith("pom.xml") -> MavenParser.builder().build();
             case Xml.Document ignored -> XmlParser.builder().build();
-            // SPIKE: package.json needs the marker-attaching parser, not the plain JSON one.
-            case Json.Document ignored when source.getSourcePath().endsWith("package.json") ->
-              PackageJsonParser.builder().build();
+            // A package.json's resolution marker is supplied by the test rather than derived by a
+            // parser, so the plain JSON parser is enough and no Node process has to start.
             case Json.Document ignored -> JsonParser.builder().build();
             case G.CompilationUnit ignored -> GradleParser.builder().build();
             case K.CompilationUnit ignored -> GradleParser.builder().build();

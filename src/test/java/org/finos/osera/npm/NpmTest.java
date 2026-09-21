@@ -4,64 +4,60 @@ import org.finos.osera.fixers.npm.EachNpmRemediator;
 import org.finos.osera.fixers.npm.NpmRemediator;
 import org.finos.osera.providers.npm.PackageVersioning;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import org.openrewrite.javascript.UpgradeDependencyVersion;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-
-import static org.openrewrite.javascript.Assertions.npm;
+import static org.openrewrite.javascript.Assertions.dependency;
+import static org.openrewrite.javascript.Assertions.nodeResolutionResult;
 import static org.openrewrite.javascript.Assertions.packageJson;
 import static org.openrewrite.javascript.Assertions.packageLock;
-import static org.openrewrite.test.SourceSpecs.dir;
+import static org.openrewrite.javascript.marker.NodeResolutionResult.PackageManager.Npm;
 
 /**
  * The ways a {@code package.json} arrives at a version, and whether each remediation tool can reach
  * them. This covers a direct dependency; the declaration shapes and the other package managers
  * follow.
+ *
+ * <p>The manifest's resolution marker is supplied rather than produced by installing the project,
+ * which is what {@code Assertions}' package-manager-free factories are for. That keeps these
+ * scenarios the same shape as the Maven and Gradle ones — text in, text out, no build tool in a
+ * subprocess. What npm's own resolver does with these versions is measured in
+ * {@link NpmDeclaredRangeTest} and {@link NpmWrittenConstraintTest}, where a real install is the
+ * measurement rather than scaffolding.
  */
 public record NpmTest(PackageVersioning versioning) implements NpmBuild {
+
+    private static final String PACKAGE = "acme-logger";
 
     /**
      * Proves the recipe can change this fixture at all.
      *
      * <p>Without it, every "no change" result in this class is worthless: a {@code package.json}
      * with no {@code NodeResolutionResult} marker makes the recipe return the tree untouched, and a
-     * marker with no package manager makes lock regeneration return null. Both are silent.
+     * marker with no package manager makes lock regeneration return null. Both are silent, and both
+     * would leave a cell looking like a tool that considered the backpatch and declined it.
      */
     @Test
-    void control(@TempDir Path project) throws IOException {
-        String pkg = versioning.freshPackage();
-        versioning.publishUpstream(pkg, "1.4.0", "1.4.1", "1.5.0", "2.0.0");
-
-        String before = manifest(pkg, "~1.4.1");
-        npm(project, packageJson(before));
-        String lock = Files.readString(project.resolve("package-lock.json"));
+    void control() {
+        versioning.publishUpstream(PACKAGE, "1.4.0", "1.4.1", "1.5.0", "2.0.0");
 
         rewriteRun(
-          spec -> spec.recipe(new UpgradeDependencyVersion(pkg, null, "~1.5.0")),
-          dir(project.toString(),
-            packageJson(before, manifest(pkg, "~1.5.0")),
-            packageLock(lock, null, lockSpec -> lockSpec.after(regenerated -> {
-                if (!regenerated.contains("\"version\": \"1.5.0\"")) {
-                    throw new AssertionError("""
-                      The control did not regenerate the lock, so no "unchanged" result in this \
-                      class means anything. Check that the fixture was built with Assertions.npm() \
-                      and that the marker carries a package manager.""");
-                }
-                return regenerated;
-            }))));
+          spec -> spec.recipe(new UpgradeDependencyVersion(PACKAGE, null, "~1.5.0")),
+          packageJson(manifest("~1.4.1"), manifest("~1.5.0"),
+            nodeResolutionResult(Npm, dependency(PACKAGE, "~1.4.1"))),
+          packageLock(lock("~1.4.1", "1.4.1"), null, spec -> spec.after(regenerated -> {
+              if (regenerated == null || !regenerated.contains("\"version\": \"1.5.0\"")) {
+                  throw new AssertionError("""
+                    The control did not regenerate the lock, so no "unchanged" result in this \
+                    class means anything.""");
+              }
+              return regenerated;
+          })));
     }
 
     @EachNpmRemediator
-    void directDependency(NpmRemediator remediator, @TempDir Path project) throws IOException {
-        String pkg = versioning.freshPackage();
-        versioning.publishUpstream(pkg, "1.4.0", "1.4.1", "1.5.0", "2.0.0");
-        String patched = versioning.publish(pkg, "1.4.1");
-
-        String before = manifest(pkg, "~1.4.1");
-        npm(project, packageJson(before));
+    void directDependency(NpmRemediator remediator) {
+        versioning.publishUpstream(PACKAGE, "1.4.0", "1.4.1", "1.5.0", "2.0.0");
+        String patched = versioning.publish(PACKAGE, "1.4.1");
 
         // The manifest only. Two of these columns drive a file updater that rewrites declarations
         // and never regenerates a lock, so scoring them on the lock would measure something this
@@ -69,11 +65,11 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
         // above is where it is measured.
         rewriteRun(
           NpmRemediator.asSpec(remediator, versioning),
-          dir(project.toString(),
-            packageJson(before, manifest(pkg, versioning.constraint(patched)))));
+          packageJson(manifest("~1.4.1"), manifest(versioning.constraint(patched)),
+            nodeResolutionResult(Npm, dependency(PACKAGE, "~1.4.1"))));
     }
 
-    private static String manifest(String name, String constraint) {
+    private static String manifest(String constraint) {
         return """
           {
             "name": "consumer",
@@ -82,6 +78,30 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
               "%s": "%s"
             }
           }
-          """.formatted(name, constraint);
+          """.formatted(PACKAGE, constraint);
+    }
+
+    private String lock(String constraint, String resolved) {
+        return """
+          {
+            "name": "consumer",
+            "version": "1.0.0",
+            "lockfileVersion": 3,
+            "requires": true,
+            "packages": {
+              "": {
+                "name": "consumer",
+                "version": "1.0.0",
+                "dependencies": { "%s": "%s" }
+              },
+              "node_modules/%s": {
+                "version": "%s",
+                "resolved": "%s%s/-/%s-%s.tgz",
+                "integrity": "sha512-placeholder"
+              }
+            }
+          }
+          """.formatted(PACKAGE, constraint, PACKAGE, resolved,
+          versioning.registry().url(), PACKAGE, PACKAGE, resolved);
     }
 }
