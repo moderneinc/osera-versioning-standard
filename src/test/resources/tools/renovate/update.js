@@ -39,6 +39,10 @@ async function main() {
           separateMinorPatch: true,
           updatePinnedDependencies: true,
           respectLatest: false,
+          // lookupUpdates is called directly, below the layer that applies Renovate's default
+          // config, so a default only applies here if it is passed. The stock column passes the
+          // shipped values; the configured column passes what a consumer would have to set.
+          ...request.lookup,
         }).then(unwrap);
 
         const update = (lookup.updates ?? [])[0];

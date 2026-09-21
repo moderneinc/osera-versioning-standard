@@ -10,13 +10,16 @@
 require "json"
 require "dependabot/maven"
 require "dependabot/gradle"
+require "dependabot/npm_and_yarn"
 require "dependabot/source"
 require "dependabot/credential"
 require "dependabot/dependency_file"
 
 ECOSYSTEMS = {
   "maven" => [Dependabot::Maven::FileParser, Dependabot::Maven::UpdateChecker, Dependabot::Maven::FileUpdater],
-  "gradle" => [Dependabot::Gradle::FileParser, Dependabot::Gradle::UpdateChecker, Dependabot::Gradle::FileUpdater]
+  "gradle" => [Dependabot::Gradle::FileParser, Dependabot::Gradle::UpdateChecker, Dependabot::Gradle::FileUpdater],
+  "npm_and_yarn" => [Dependabot::NpmAndYarn::FileParser, Dependabot::NpmAndYarn::UpdateChecker,
+                     Dependabot::NpmAndYarn::FileUpdater]
 }.freeze
 
 request = JSON.parse($stdin.read)
@@ -24,8 +27,16 @@ dir = request.fetch("dir")
 parser_class, checker_class, updater_class = ECOSYSTEMS.fetch(request.fetch("ecosystem"))
 
 source = Dependabot::Source.new(provider: "github", repo: "finos/osera", directory: "/")
+# npm registries are declared differently from Maven ones, and the scheme has to be spelled out:
+# Package::RegistryFinder prepends https:// to anything not starting with http, and a plain host
+# then fails as PrivateSourceTimedOut rather than as a configuration error.
 credentials = request.fetch("registryUrls").map do |url|
-  Dependabot::Credential.new({ "type" => "maven_repository", "url" => url })
+  if request.fetch("ecosystem") == "npm_and_yarn"
+    Dependabot::Credential.new({ "type" => "npm_registry", "registry" => url.sub(%r{/\z}, ""),
+                                 "replaces-base" => true })
+  else
+    Dependabot::Credential.new({ "type" => "maven_repository", "url" => url })
+  end
 end
 
 def read(dir, names)
@@ -35,7 +46,7 @@ end
 log = []
 request.fetch("targets").each do |target|
   files = read(dir, request.fetch("files"))
-  dependency = parser_class.new(dependency_files: files, source: source).parse
+  dependency = parser_class.new(dependency_files: files, source: source, credentials: credentials).parse
                            .find { |d| d.name == target.fetch("packageName") }
   next unless dependency
 
@@ -43,10 +54,10 @@ request.fetch("targets").each do |target|
     dependency: dependency,
     dependency_files: files,
     credentials: credentials,
-    # Dependabot has no way to say "only versions matching the producer's pattern", so the
-    # producer's patch is made the ceiling instead. Its ordering still decides whether the patch
-    # counts as newer than the version it patches, which is the question being asked.
-    ignored_versions: ["> #{target.fetch('ceiling')}"]
+    # Dependabot has no way to say "only versions matching the producer's pattern", only which
+    # versions to ignore, so each caller says what to rule out: the JVM columns rule out anything
+    # above the producer's patch, and the npm ones rule out anything off the line being patched.
+    ignored_versions: target.fetch("ignoredVersions")
   )
   entry = {
     "dep" => dependency.name,
