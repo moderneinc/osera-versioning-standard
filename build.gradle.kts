@@ -39,6 +39,8 @@ dependencies {
     implementation("org.openrewrite:rewrite-groovy")
     implementation("org.openrewrite:rewrite-kotlin")
     implementation("org.openrewrite:rewrite-toml")
+    implementation("org.openrewrite:rewrite-javascript")
+    implementation("org.openrewrite:rewrite-json")
     implementation("org.openrewrite:rewrite-properties")
     implementation("org.openrewrite.recipe:rewrite-java-dependencies:latest.integration")
 
@@ -153,7 +155,8 @@ val installDependabot by tasks.registering(Exec::class) {
     commandLine(
         ruby.map { File(File(it).parentFile, "gem").path }.getOrElse("gem"),
         "install", "--no-document", "--silent",
-        "dependabot-maven:$dependabotVersion", "dependabot-gradle:$dependabotVersion"
+        "dependabot-maven:$dependabotVersion", "dependabot-gradle:$dependabotVersion",
+        "dependabot-npm_and_yarn:$dependabotVersion"
     )
 }
 
