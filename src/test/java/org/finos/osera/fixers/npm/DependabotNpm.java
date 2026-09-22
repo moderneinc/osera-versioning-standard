@@ -36,7 +36,7 @@ public final class DependabotNpm implements NpmRemediator {
     }
 
     @Override
-    public Recipe asRecipe(PackageVersioning versioning) {
+    public Recipe asRecipe(PackageVersioning versioning, String packageName) {
         return new ExternalRemediation(new ExternalRemediation.Tool() {
             @Override
             public String name() {
@@ -53,9 +53,11 @@ public final class DependabotNpm implements NpmRemediator {
                     "ecosystem", "npm_and_yarn",
                     "files", files.stream().map(Path::toString).toList(),
                     "registryUrls", List.of(versioning.registry().url()),
-                    "targets", versioning.registry().packages().stream()
-                      .map(name -> request("packageName", name, "ignoredVersions", List.<String>of()))
-                      .toList()));
+                    // Nothing is ruled out: the question is what Dependabot offers a consumer
+                    // who has configured it no further, and the answer is part of the measurement.
+                    "targets", List.of(request(
+                      "packageName", packageName,
+                      "ignoredVersions", List.<String>of()))));
             }
         });
     }

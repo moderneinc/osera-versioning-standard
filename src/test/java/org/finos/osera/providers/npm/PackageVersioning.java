@@ -1,6 +1,7 @@
 package org.finos.osera.providers.npm;
 
 import org.finos.osera.npm.MockNpmRegistry;
+import org.finos.osera.npm.SemverOrder;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -18,6 +19,12 @@ public sealed abstract class PackageVersioning permits NextPatchPrerelease {
 
     private final MockNpmRegistry registry = new MockNpmRegistry();
     private final AtomicInteger packages = new AtomicInteger();
+
+    protected PackageVersioning() {
+        // One scheme is instantiated per run, and its registry is the one every npm process in
+        // that run should resolve against.
+        registry.asDefaultRegistry();
+    }
 
     /**
      * A package name no other scenario is using.
@@ -53,6 +60,25 @@ public sealed abstract class PackageVersioning permits NextPatchPrerelease {
             registry.publish(name, release);
         }
     }
+
+    /**
+     * The newest backpatch this producer has published for the package.
+     *
+     * <p>Which versions are this producer's is a property of the scheme, since the scheme is what
+     * spells them, so the fixers ask rather than each matching on the producer token themselves.
+     */
+    public final String newestBackpatch(String name) {
+        return registry.published(name).stream()
+          .filter(this::isBackpatch)
+          .max(SemverOrder.INSTANCE)
+          .orElseThrow(() -> new IllegalStateException("No backpatch published for " + name));
+    }
+
+    /** Whether a version is one this producer published, as opposed to the maintainer's own. */
+    public abstract boolean isBackpatch(String version);
+
+    /** A regular expression matching this producer's versions, for a tool that takes one. */
+    public abstract String backpatchPattern();
 
     protected abstract String version(String base, String producer, int patchSequence);
 

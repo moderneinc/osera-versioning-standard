@@ -2,10 +2,9 @@ package org.finos.osera.npm;
 
 import mockwebserver3.Dispatcher;
 import mockwebserver3.MockResponse;
-import mockwebserver3.MockResponseBody;
 import mockwebserver3.MockWebServer;
 import mockwebserver3.RecordedRequest;
-import okio.BufferedSink;
+import okio.Buffer;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -40,15 +39,12 @@ public final class MockNpmRegistry {
     private static final String UPSTREAM = "https://registry.npmjs.org";
 
     private final Map<String, Set<String>> versions = new ConcurrentHashMap<>();
-    // A packument names every version, and building one meant rebuilding every tarball and hashing
-    // it twice. That is fast enough once and slow enough at thirty packages to have npm time out.
+    // A packument names every version, and building one rebuilt every tarball and hashed it twice.
     private final Map<String, byte[]> tarballs = new ConcurrentHashMap<>();
-    private final Map<String, String> documents = new ConcurrentHashMap<>();
     private final MockWebServer server = new MockWebServer();
     private final HttpClient upstream = HttpClient.newBuilder()
       .followRedirects(HttpClient.Redirect.NORMAL)
       .build();
-    private final Path npmrc;
 
     public MockNpmRegistry() {
         server.setDispatcher(new Dispatcher() {
@@ -59,15 +55,6 @@ public final class MockNpmRegistry {
         });
         try {
             server.start();
-            // The npm processes that measure real resolution read the file named by
-            // npm_config_userconfig, which the build points here. Each of those writes its own
-            // project .npmrc naming this registry, so this file's job is only to neutralise
-            // whatever the developer has in ~/.npmrc; the path is fixed because a child's
-            // environment cannot be changed after the JVM starts.
-            String configured = System.getProperty("osera.npmrc");
-            npmrc = configured != null ? Path.of(configured) : Files.createTempFile("osera", ".npmrc");
-            Files.createDirectories(npmrc.toAbsolutePath().getParent());
-            Files.writeString(npmrc, "registry=" + url() + "\n");
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -94,6 +81,28 @@ public final class MockNpmRegistry {
         return Set.copyOf(versions.getOrDefault(name, Set.of()));
     }
 
+    /**
+     * Points the npm processes that measure real resolution at this registry, by writing the file
+     * named by {@code npm_config_userconfig}.
+     *
+     * <p>Each of those writes its own project {@code .npmrc} naming this registry too, so this
+     * file's job is only to neutralise whatever the developer has in {@code ~/.npmrc}. It is a
+     * single shared path, so only the registry a run measures against may write it.
+     */
+    public void asDefaultRegistry() {
+        String configured = System.getProperty("osera.npmrc");
+        if (configured == null) {
+            return;
+        }
+        try {
+            Path npmrc = Path.of(configured);
+            Files.createDirectories(npmrc.toAbsolutePath().getParent());
+            Files.writeString(npmrc, "registry=" + url() + "\n");
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
     /** Every package this registry holds versions for, as opposed to proxies. */
     public Set<String> packages() {
         return Set.copyOf(versions.keySet());
@@ -110,7 +119,7 @@ public final class MockNpmRegistry {
             if (withoutSlash.startsWith(tarballPrefix) && withoutSlash.endsWith(".tgz")) {
                 String version = withoutSlash.substring(tarballPrefix.length(), withoutSlash.length() - 4);
                 return held(name, version) ?
-                  new MockResponse.Builder().body(new Bytes(tarball(name, version))).build() :
+                  new MockResponse.Builder().body(new Buffer().write(tarball(name, version))).build() :
                   new MockResponse.Builder().code(404).build();
             }
             if (withoutSlash.startsWith(name + "/")) {
@@ -160,10 +169,6 @@ public final class MockNpmRegistry {
     }
 
     private String versionDocument(String name, String version) {
-        return documents.computeIfAbsent(name + "@" + version, ignored -> buildVersionDocument(name, version));
-    }
-
-    private String buildVersionDocument(String name, String version) {
         byte[] tarball = tarball(name, version);
         return """
           {
@@ -198,7 +203,7 @@ public final class MockNpmRegistry {
             return new MockResponse.Builder()
               .code(response.statusCode())
               .setHeader("Content-Type", contentType)
-              .body(new Bytes(body))
+              .body(new Buffer().write(body))
               .build();
         } catch (IOException e) {
             return new MockResponse.Builder().code(502).build();
@@ -211,7 +216,7 @@ public final class MockNpmRegistry {
     private static MockResponse json(String body) {
         return new MockResponse.Builder()
           .setHeader("Content-Type", "application/json")
-          .body(new Bytes(body.getBytes(UTF_8)))
+          .body(new Buffer().write(body.getBytes(UTF_8)))
           .build();
     }
 
@@ -229,17 +234,5 @@ public final class MockNpmRegistry {
             hex.append("%02x".formatted(b));
         }
         return hex.toString();
-    }
-
-    private record Bytes(byte[] content) implements MockResponseBody {
-        @Override
-        public long getContentLength() {
-            return content.length;
-        }
-
-        @Override
-        public void writeTo(BufferedSink sink) throws IOException {
-            sink.write(content);
-        }
     }
 }

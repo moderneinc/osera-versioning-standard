@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.concurrent.TimeUnit;
 
 /**
  * A throwaway consumer project, installed for real. The question every scenario here asks is which
@@ -44,11 +43,9 @@ public final class NpmProject {
               .redirectErrorStream(true)
               .start();
             install.getOutputStream().close();
+            // Reading to EOF already waits for the process, so waitFor only collects the status.
             String output = new String(install.getInputStream().readAllBytes());
-            if (!install.waitFor(300, TimeUnit.SECONDS)) {
-                install.destroyForcibly();
-                throw new IllegalStateException("npm install did not finish");
-            }
+            install.waitFor();
 
             Path installed = project.resolve("node_modules").resolve(name).resolve("package.json");
             if (!Files.exists(installed)) {

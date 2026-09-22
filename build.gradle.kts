@@ -188,6 +188,7 @@ tasks.withType<Test>().configureEach {
     systemProperty("osera.dependabot", dependabotGems.get().asFile.absolutePath)
     // What each external tool decided, in its own words, next to the report that summarises it.
     systemProperty("osera.tools.log", layout.buildDirectory.dir("tool-logs").get().asFile.absolutePath)
+    npm.orNull?.let { systemProperty("osera.npm", it) }
     node.orNull?.let { systemProperty("osera.node", it) }
     ruby.orNull?.let { systemProperty("osera.ruby", it) }
 }

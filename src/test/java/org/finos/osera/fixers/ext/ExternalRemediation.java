@@ -29,7 +29,6 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Stream;
 
 /**
@@ -117,24 +116,20 @@ public final class ExternalRemediation extends ScanningRecipe<ExternalRemediatio
             // The sources sit in their own subdirectory so that whatever a tool needs alongside
             // them — its script, its cache — is not something the tool then tries to remediate.
             Path directory = work.resolve("sources");
-            // Sources rooted at a real project on disk carry absolute paths, and resolving one
-            // against this directory yields the original again, which would point the tool at a
-            // directory holding none of the files it was handed.
-            Map<Path, Path> layout = relativize(before.keySet());
             try {
                 Files.createDirectories(directory);
                 for (Map.Entry<Path, SourceFile> source : before.entrySet()) {
-                    Path file = directory.resolve(layout.get(source.getKey()));
+                    Path file = directory.resolve(source.getKey());
                     Files.createDirectories(file.getParent());
                     Files.writeString(file, source.getValue().printAll());
                 }
                 // A build tool reads a project, not a list of files, so it sees the shape it would
                 // in a checkout. Sorted so that a parent pom precedes the modules under it.
-                tool.run(directory, layout.values().stream().sorted(Comparator.comparing(Path::toString)).toList());
+                tool.run(directory, before.keySet().stream().sorted(Comparator.comparing(Path::toString)).toList());
 
                 Map<Path, String> text = new LinkedHashMap<>();
                 for (Path source : before.keySet()) {
-                    text.put(source, Files.readString(directory.resolve(layout.get(source))));
+                    text.put(source, Files.readString(directory.resolve(source)));
                 }
                 return text;
             } catch (IOException e) {
@@ -142,17 +137,6 @@ public final class ExternalRemediation extends ScanningRecipe<ExternalRemediatio
             } finally {
                 deleteRecursively(work);
             }
-        }
-
-        /** Where each source sits relative to the project root the tool will be shown. */
-        private static Map<Path, Path> relativize(Set<Path> sources) {
-            Path root = sources.stream().filter(Path::isAbsolute).map(Path::getParent)
-              .reduce(ExternalRemediation::commonAncestor).orElse(null);
-            Map<Path, Path> layout = new LinkedHashMap<>();
-            for (Path source : sources) {
-                layout.put(source, source.isAbsolute() && root != null ? root.relativize(source) : source);
-            }
-            return layout;
         }
 
         /**
@@ -178,14 +162,6 @@ public final class ExternalRemediation extends ScanningRecipe<ExternalRemediatio
             }));
             return remediated;
         }
-    }
-
-    private static Path commonAncestor(Path left, Path right) {
-        Path ancestor = left;
-        while (ancestor != null && !right.startsWith(ancestor)) {
-            ancestor = ancestor.getParent();
-        }
-        return ancestor == null ? left.getRoot() : ancestor;
     }
 
     private static Parser parserFor(SourceFile source) {

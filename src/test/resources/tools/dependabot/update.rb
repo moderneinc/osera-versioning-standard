@@ -55,8 +55,9 @@ request.fetch("targets").each do |target|
     dependency_files: files,
     credentials: credentials,
     # Dependabot has no way to say "only versions matching the producer's pattern", only which
-    # versions to ignore, so each caller says what to rule out: the JVM columns rule out anything
-    # above the producer's patch, and the npm ones rule out anything off the line being patched.
+    # versions to ignore, so each caller says what to rule out. The JVM columns rule out anything
+    # above the producer's patch; the npm one rules out nothing, because what Dependabot offers an
+    # unconfigured consumer is itself part of the measurement.
     ignored_versions: target.fetch("ignoredVersions")
   )
   entry = {

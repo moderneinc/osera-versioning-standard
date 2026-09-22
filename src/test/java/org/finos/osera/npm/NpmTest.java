@@ -64,7 +64,7 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
         // harness does not ask them to do. Lock regeneration is OpenRewrite's, and the control
         // above is where it is measured.
         rewriteRun(
-          NpmRemediator.asSpec(remediator, versioning),
+          NpmRemediator.asSpec(remediator, versioning, PACKAGE),
           packageJson(manifest("~1.4.1"), manifest(versioning.constraint(patched)),
             nodeResolutionResult(Npm, dependency(PACKAGE, "~1.4.1"))));
     }

@@ -32,6 +32,16 @@ public final class NextPatchPrerelease extends PackageVersioning {
     }
 
     @Override
+    public boolean isBackpatch(String version) {
+        return version.matches(".*-" + OSERA + "-\\d+$");
+    }
+
+    @Override
+    public String backpatchPattern() {
+        return "-" + OSERA + "-\\d+$";
+    }
+
+    @Override
     public String constraint(String patched) {
         return "~" + patched;
     }

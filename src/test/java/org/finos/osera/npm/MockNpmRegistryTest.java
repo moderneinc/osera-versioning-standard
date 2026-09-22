@@ -54,9 +54,11 @@ class MockNpmRegistryTest {
     void proxiesWhatItDoesNotHold() throws Exception {
         MockNpmRegistry registry = new MockNpmRegistry();
 
-        JsonNode packument = get(registry.url() + "@openrewrite%2frewrite");
+        // Any real package proves this; a small one keeps the test from pulling a ten-megabyte
+        // packument to assert three things about its shape.
+        JsonNode packument = get(registry.url() + "is-odd");
 
-        assertThat(packument.get("name").asText()).isEqualTo("@openrewrite/rewrite");
+        assertThat(packument.get("name").asText()).isEqualTo("is-odd");
         assertThat(packument.get("versions").size()).isGreaterThan(0);
         assertThat(packument.toString())
           .as("upstream tarball URLs are rewritten so clients stay on the proxy")

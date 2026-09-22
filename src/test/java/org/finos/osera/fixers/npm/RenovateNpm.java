@@ -32,7 +32,7 @@ public sealed interface RenovateNpm extends NpmRemediator permits RenovateNpm.St
     Map<String, Object> lookup();
 
     /** Which versions this column has been told count. Empty when nothing has been configured. */
-    String allowedVersions();
+    String allowedVersions(PackageVersioning versioning);
 
     @Override
     default boolean isInstalled() {
@@ -40,7 +40,7 @@ public sealed interface RenovateNpm extends NpmRemediator permits RenovateNpm.St
     }
 
     @Override
-    default Recipe asRecipe(PackageVersioning versioning) {
+    default Recipe asRecipe(PackageVersioning versioning, String packageName) {
         RenovateNpm column = this;
         return new ExternalRemediation(new ExternalRemediation.Tool() {
             @Override
@@ -61,11 +61,9 @@ public sealed interface RenovateNpm extends NpmRemediator permits RenovateNpm.St
                     "files", files.stream().map(Path::toString).toList(),
                     "registryUrls", List.of(versioning.registry().url()),
                     "lookup", column.lookup(),
-                    "targets", versioning.registry().packages().stream()
-                      .map(name -> request(
-                        "packageName", name,
-                        "allowedVersions", column.allowedVersions()))
-                      .toList()));
+                    "targets", List.of(request(
+                      "packageName", packageName,
+                      "allowedVersions", column.allowedVersions(versioning)))));
             }
         });
     }
@@ -78,7 +76,7 @@ public sealed interface RenovateNpm extends NpmRemediator permits RenovateNpm.St
         }
 
         @Override
-        public String allowedVersions() {
+        public String allowedVersions(PackageVersioning versioning) {
             // A consumer who has configured nothing has not named the producer's line either.
             return "";
         }
@@ -97,8 +95,8 @@ public sealed interface RenovateNpm extends NpmRemediator permits RenovateNpm.St
         }
 
         @Override
-        public String allowedVersions() {
-            return "/-" + PackageVersioning.OSERA + "-\\d+$/";
+        public String allowedVersions(PackageVersioning versioning) {
+            return "/" + versioning.backpatchPattern() + "/";
         }
 
         @Override

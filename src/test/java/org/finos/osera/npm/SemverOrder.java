@@ -7,7 +7,7 @@ import java.util.List;
  * SemVer 2.0.0 §11 precedence, enough of it to order a packument. Not a general implementation:
  * build metadata does not occur in any scheme this suite publishes to npm, so it is not handled.
  */
-enum SemverOrder implements Comparator<String> {
+public enum SemverOrder implements Comparator<String> {
     INSTANCE;
 
     @Override

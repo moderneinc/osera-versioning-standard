@@ -19,17 +19,23 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  */
 public sealed interface NpmRemediator permits OpenRewriteNpm, RenovateNpm, DependabotNpm {
 
-    Recipe asRecipe(PackageVersioning versioning);
+    /**
+     * @param packageName The dependency the scenario is about. One registry serves the whole run,
+     *                    so its key set is every other scenario's fixture as well; a column that
+     *                    worked from that would re-parse the project once per package it has never
+     *                    heard of.
+     */
+    Recipe asRecipe(PackageVersioning versioning, String packageName);
 
     /** A toolchain nobody installed is a cell with no answer, which is not a refusal. */
     default boolean isInstalled() {
         return true;
     }
 
-    static Consumer<RecipeSpec> asSpec(NpmRemediator remediator, PackageVersioning versioning) {
+    static Consumer<RecipeSpec> asSpec(NpmRemediator remediator, PackageVersioning versioning, String packageName) {
         return spec -> {
             assumeTrue(remediator.isInstalled(), remediator + " is not installed");
-            Recipe recipe = remediator.asRecipe(versioning);
+            Recipe recipe = remediator.asRecipe(versioning, packageName);
             // A recipe that shells out to another tool holds a process, not data, so it cannot make
             // the serialization round trip that a recipe published to a catalog has to.
             spec.validateRecipeSerialization(!(recipe instanceof ExternalRemediation))
