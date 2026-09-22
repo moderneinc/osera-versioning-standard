@@ -39,6 +39,10 @@ public final class MockNpmRegistry {
     private static final String UPSTREAM = "https://registry.npmjs.org";
 
     private final Map<String, Set<String>> versions = new ConcurrentHashMap<>();
+    // What each version depends on. A registry that cannot say so cannot serve a scenario where
+    // the backpatch arrives underneath something else: the lock engine re-resolves, finds the
+    // package orphaned, and refuses with RESOLUTION_REQUIRED.
+    private final Map<String, Map<String, String>> dependencies = new ConcurrentHashMap<>();
     // A packument names every version, and building one rebuilt every tarball and hashed it twice.
     private final Map<String, byte[]> tarballs = new ConcurrentHashMap<>();
     private final MockWebServer server = new MockWebServer();
@@ -74,7 +78,13 @@ public final class MockNpmRegistry {
 
     /** Adds a version. Takes effect on the next request; the port does not move. */
     public void publish(String name, String version) {
+        publish(name, version, Map.of());
+    }
+
+    /** As {@link #publish(String, String)}, for a version that depends on something. */
+    public void publish(String name, String version, Map<String, String> dependsOn) {
         versions.computeIfAbsent(name, n -> ConcurrentHashMap.newKeySet()).add(version);
+        dependencies.put(name + "@" + version, dependsOn);
     }
 
     public Set<String> published(String name) {
@@ -165,7 +175,8 @@ public final class MockNpmRegistry {
     }
 
     private byte[] tarball(String name, String version) {
-        return tarballs.computeIfAbsent(name + "@" + version, ignored -> Tarball.of(name, version));
+        return tarballs.computeIfAbsent(name + "@" + version,
+          key -> Tarball.of(name, version, dependencies.getOrDefault(key, Map.of())));
     }
 
     private String versionDocument(String name, String version) {
@@ -174,13 +185,16 @@ public final class MockNpmRegistry {
           {
             "name": "%s",
             "version": "%s",
+            "dependencies": %s,
             "dist": {
               "tarball": "%s%s/-/%s-%s.tgz",
               "shasum": "%s",
               "integrity": "sha512-%s"
             }
           }
-          """.formatted(name, version, url(), name, name, version,
+          """.formatted(name, version,
+          Tarball.json(dependencies.getOrDefault(name + "@" + version, Map.of())),
+          url(), name, name, version,
           hex(digest("SHA-1", tarball)),
           Base64.getEncoder().encodeToString(digest("SHA-512", tarball)));
     }

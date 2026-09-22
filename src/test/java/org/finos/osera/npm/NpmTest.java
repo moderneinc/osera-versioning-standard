@@ -2,6 +2,7 @@ package org.finos.osera.npm;
 
 import org.finos.osera.fixers.npm.EachNpmRemediator;
 import org.finos.osera.fixers.npm.NpmRemediator;
+import org.finos.osera.fixers.npm.OpenRewriteNpm;
 import org.finos.osera.providers.npm.PackageVersioning;
 import org.junit.jupiter.api.Test;
 import org.openrewrite.javascript.UpgradeDependencyVersion;
@@ -63,10 +64,35 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
         // and never regenerates a lock, so scoring them on the lock would measure something this
         // harness does not ask them to do. Lock regeneration is OpenRewrite's, and the control
         // above is where it is measured.
+        // OpenRewrite's two npm dependency recipes are composed together, as the JVM column
+        // composes them in osera.yml, because a column cannot know in advance whether a consumer
+        // declares the vulnerable package or only has it underneath something they declare. On
+        // npm — unlike the JVM pair — the transitive recipe also writes an override for a
+        // dependency that is already direct and already correct, so the expected output carries
+        // that redundancy rather than hiding it by running the recipes separately.
+        String after = remediator instanceof OpenRewriteNpm
+          ? manifestWithRedundantOverride(versioning.constraint(patched))
+          : manifest(versioning.constraint(patched));
+
         rewriteRun(
           NpmRemediator.asSpec(remediator, versioning, PACKAGE),
-          packageJson(manifest("~1.4.1"), manifest(versioning.constraint(patched)),
+          packageJson(manifest("~1.4.1"), after,
             nodeResolutionResult(Npm, dependency(PACKAGE, "~1.4.1"))));
+    }
+
+    /** What OpenRewrite leaves behind: the declaration moved, and an override it did not need. */
+    private static String manifestWithRedundantOverride(String constraint) {
+        return """
+          {
+            "name": "consumer",
+            "version": "1.0.0",
+            "dependencies": {
+              "%s": "%s"
+            },
+            "overrides": {
+              "%s": "%s"
+            }
+          }""".formatted(PACKAGE, constraint, PACKAGE, constraint);
     }
 
     private static String manifest(String constraint) {
