@@ -60,17 +60,28 @@ request.fetch("targets").each do |target|
     # unconfigured consumer is itself part of the measurement.
     ignored_versions: target.fetch("ignoredVersions")
   )
+  # A dependency the consumer declares is updated by unlocking its own requirement. One that
+  # arrives underneath another has no requirement to unlock, and Dependabot reaches it through a
+  # different resolver entirely, asked for with :none. Asking only :own reports a transitive as
+  # un-updatable when the tool can in fact update it.
+  unlock = if checker.can_update?(requirements_to_unlock: :own)
+             :own
+           elsif checker.can_update?(requirements_to_unlock: :none)
+             :none
+           end
+
   entry = {
     "dep" => dependency.name,
     "current" => dependency.version,
     "latest" => checker.latest_version&.to_s,
-    "can_update" => checker.can_update?(requirements_to_unlock: :own)
+    "unlock" => unlock,
+    "can_update" => !unlock.nil?
   }
   log << entry
   next unless entry["can_update"]
 
   updater_class.new(
-    dependencies: checker.updated_dependencies(requirements_to_unlock: :own),
+    dependencies: checker.updated_dependencies(requirements_to_unlock: unlock),
     dependency_files: files,
     credentials: credentials
   ).updated_dependency_files.each do |file|

@@ -34,20 +34,36 @@ public final class NpmProject {
      */
     public static String resolve(MockNpmRegistry registry, PackageManager pm,
                                  String name, String declared) {
+        return install(registry, pm, name, """
+          {
+            "name": "consumer",
+            "version": "1.0.0",
+            "dependencies": { "%s": "%s" }
+          }
+          """.formatted(name, declared));
+    }
+
+    /**
+     * As {@link #resolve}, for a manifest the caller writes in full — an override, a workspace, a
+     * dependency that is only reachable underneath another.
+     *
+     * @return the version {@code pm} installed for {@code name}, or {@code "nothing"}.
+     */
+    public static String install(MockNpmRegistry registry, PackageManager pm,
+                                 String name, String manifest) {
         Path project = null;
         try {
             project = Files.createTempDirectory("osera-npm");
-            Files.writeString(project.resolve("package.json"), """
-              {
-                "name": "consumer",
-                "version": "1.0.0",
-                "dependencies": { "%s": "%s" }
-              }
-              """.formatted(name, declared));
+            Files.writeString(project.resolve("package.json"), manifest);
             // Its own cache, because a packument is cached per registry origin and these scenarios
             // change what a single origin serves between probes.
             Files.writeString(project.resolve(".npmrc"),
-              "registry=%s\ncache=%s\n".formatted(registry.url(), project.resolve("cache")));
+              "registry=%s\ncache=%s\n".formatted(registry.url(), project.resolve("cache"))
+              // pnpm symlinks by default, so a transitive lives under .pnpm rather than at
+              // node_modules/<name>. Hoisting makes the tree the same shape npm produces, which
+              // is what "which version did it install" is read from. The Berry equivalent is
+              // nodeLinker below.
+              + (pm == PackageManager.Pnpm ? "node-linker=hoisted\n" : ""));
             if (pm == PackageManager.YarnBerry) {
                 // Berry reads neither the registry nor the linker from .npmrc, and refuses a
                 // plaintext http registry unless it is whitelisted.
