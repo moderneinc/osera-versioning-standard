@@ -50,7 +50,10 @@ public final class DependabotNpm implements NpmRemediator {
                     // who has configured it no further, and the answer is part of the measurement.
                     "targets", List.of(request(
                       "packageName", packageName,
-                      "ignoredVersions", List.<String>of()))));
+                      "ignoredVersions", List.<String>of(),
+                      // A backpatch may arrive underneath something the consumer declares, and a
+                      // subdependency has no requirement of its own to unlock.
+                      "unlockStrategies", List.of("own", "none")))));
             }
         });
     }

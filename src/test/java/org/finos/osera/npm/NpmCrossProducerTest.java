@@ -2,7 +2,6 @@ package org.finos.osera.npm;
 
 import org.finos.osera.fixers.npm.EachNpmRemediator;
 import org.finos.osera.fixers.npm.NpmRemediator;
-import org.finos.osera.fixers.npm.OpenRewriteNpm;
 import org.finos.osera.providers.npm.PackageVersioning;
 import org.junit.jupiter.api.Test;
 import org.openrewrite.javascript.marker.NodeResolutionResult.PackageManager;
@@ -37,7 +36,7 @@ public record NpmCrossProducerTest(PackageVersioning versioning) implements NpmB
         rewriteRun(
           NpmRemediator.asSpec(remediator, versioning, PACKAGE),
           packageJson(manifest("~1.4.1"),
-            remediator instanceof OpenRewriteNpm
+            remediator.alsoPinsWithAnOverride()
               ? manifestWithOverride(versioning.constraint(ours))
               : manifest(versioning.constraint(ours)),
             nodeResolutionResult(Npm, dependency(PACKAGE, "~1.4.1"))));
@@ -96,9 +95,7 @@ public record NpmCrossProducerTest(PackageVersioning versioning) implements NpmB
             "dependencies": {
               "%s": "%s"
             },
-            "overrides": {
-              "%s": "%s"
-            }
-          }""".formatted(PACKAGE, constraint, PACKAGE, constraint);
+          %s
+          }""".formatted(PACKAGE, constraint, Overrides.member(Npm, PACKAGE, constraint));
     }
 }

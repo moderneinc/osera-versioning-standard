@@ -84,7 +84,11 @@ public final class MockNpmRegistry {
     /** As {@link #publish(String, String)}, for a version that depends on something. */
     public void publish(String name, String version, Map<String, String> dependsOn) {
         versions.computeIfAbsent(name, n -> ConcurrentHashMap.newKeySet()).add(version);
+        // Republishing a version with a different graph has to invalidate the artifact built from
+        // the old one, or the packument advertises one set of dependencies and the tarball carries
+        // another. Scenarios do republish: each gives acme-wrapper a different logger underneath.
         dependencies.put(name + "@" + version, dependsOn);
+        tarballs.remove(name + "@" + version);
     }
 
     public Set<String> published(String name) {

@@ -1,6 +1,6 @@
 package org.finos.osera.npm;
 
-import org.finos.osera.fixers.npm.EachNpmRemediatorAndManager;
+import org.finos.osera.fixers.npm.EachNpmRemediator;
 import org.finos.osera.fixers.npm.NpmRemediator;
 import org.finos.osera.providers.npm.PackageVersioning;
 import org.junit.jupiter.api.Test;
@@ -57,12 +57,19 @@ public record NpmTransitiveTest(PackageVersioning versioning) implements NpmBuil
 
         rewriteRun(
           spec -> spec.recipe(new UpgradeTransitiveDependencyVersion(logger, "~1.5.0", null)),
-          packageJson(manifest(), withOverride(logger, "~1.5.0"), marker(logger, Npm)),
+          packageJson(manifest(), withOverride(Npm, logger, "~1.5.0"), marker(logger, Npm)),
           packageLock(lock(logger, "1.4.1"), null));
     }
 
-    @EachNpmRemediatorAndManager
-    void transitiveDependency(NpmRemediator remediator, PackageManager pm) {
+    /**
+     * npm only. The fixture's lock is a {@code package-lock.json}, so pointing the marker at pnpm
+     * or Yarn Berry has the engine look for their formats and fail with {@code MALFORMED_LOCK} —
+     * a red cell about the fixture rather than about the tool. Measuring those two wants a
+     * {@code pnpm-lock.yaml} and a {@code yarn.lock} of their own, and is unmeasured until then.
+     */
+    @EachNpmRemediator
+    void transitiveDependency(NpmRemediator remediator) {
+        PackageManager pm = Npm;
         String logger = versioning.freshPackage();
         versioning.publishUpstream(logger, "1.4.0", "1.4.1", "1.5.0", "2.0.0");
         versioning.registry().publish(WRAPPER, "3.0.0", Map.of(logger, "~1.4.1"));
@@ -70,7 +77,7 @@ public record NpmTransitiveTest(PackageVersioning versioning) implements NpmBuil
 
         rewriteRun(
           NpmRemediator.asSpec(remediator, versioning, logger),
-          packageJson(manifest(), withOverride(logger, versioning.constraint(patched)), marker(logger, pm)),
+          packageJson(manifest(), withOverride(pm, logger, versioning.constraint(patched)), marker(logger, pm)),
           // A consumer is only remediated once the lock pins the backpatch; a manifest that says
           // one thing while the lock installs another is not a fix. Measured separately from the
           // manifest because the two answers differ.
@@ -95,7 +102,7 @@ public record NpmTransitiveTest(PackageVersioning versioning) implements NpmBuil
           """.formatted(WRAPPER);
     }
 
-    private static String withOverride(String logger, String constraint) {
+    private static String withOverride(PackageManager pm, String logger, String constraint) {
         return """
           {
             "name": "consumer",
@@ -103,10 +110,8 @@ public record NpmTransitiveTest(PackageVersioning versioning) implements NpmBuil
             "dependencies": {
               "%s": "^3.0.0"
             },
-            "overrides": {
-              "%s": "%s"
-            }
-          }""".formatted(WRAPPER, logger, constraint);
+          %s
+          }""".formatted(WRAPPER, Overrides.member(pm, logger, constraint));
     }
 
     /** The graph a real install would have produced: the logger sits under the wrapper. */

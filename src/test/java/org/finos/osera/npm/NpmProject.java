@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A throwaway consumer project, installed for real. The question every scenario here asks is which
@@ -76,14 +77,17 @@ public final class NpmProject {
                   """.formatted(registry.url()));
             }
 
-            Process install = new ProcessBuilder(install(pm))
+            Process install = new ProcessBuilder(installCommand(pm))
               .directory(project.toFile())
               .redirectErrorStream(true)
               .start();
             install.getOutputStream().close();
             // Reading to EOF already waits for the process, so waitFor only collects the status.
             String output = new String(install.getInputStream().readAllBytes());
-            install.waitFor();
+            if (!install.waitFor(300, TimeUnit.SECONDS)) {
+                install.destroyForcibly();
+                throw new IllegalStateException(pm + " install did not finish");
+            }
 
             Path installed = project.resolve("node_modules").resolve(name).resolve("package.json");
             if (!Files.exists(installed)) {
@@ -107,7 +111,7 @@ public final class NpmProject {
         }
     }
 
-    private static List<String> install(PackageManager pm) {
+    private static List<String> installCommand(PackageManager pm) {
         List<String> command = new ArrayList<>(PackageManagers.command(pm));
         command.add("install");
         command.addAll(switch (pm) {
@@ -117,7 +121,7 @@ public final class NpmProject {
             // --mode is Berry's; Classic has its own flags and its own resolutions parser, which
             // is the reason it is measured at all.
             case YarnClassic -> List.of("--ignore-scripts", "--non-interactive");
-            case Bun -> throw new IllegalArgumentException("Bun is not measured");
+            case Bun -> throw PackageManagers.notMeasured(pm);
         });
         return command;
     }

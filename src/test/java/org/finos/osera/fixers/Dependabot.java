@@ -61,7 +61,8 @@ public final class Dependabot implements Remediator {
         return versioning.repository().published().stream()
           .map(patched -> request(
             "packageName", patched.getGroupId() + ":" + patched.getArtifactId(),
-            "ignoredVersions", List.of("> " + requireNonNull(patched.getVersion()))))
+            "ignoredVersions", List.of("> " + requireNonNull(patched.getVersion())),
+            "unlockStrategies", List.of("own")))
           .toList();
     }
 

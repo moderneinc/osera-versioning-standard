@@ -29,6 +29,30 @@ public sealed interface NpmRemediator permits OpenRewriteNpm, RenovateNpm, Depen
      */
     Recipe asRecipe(PackageVersioning versioning, String packageName);
 
+    /**
+     * Whether this column pins the package with an override as well as moving the declaration.
+     *
+     * <p>A property of the column, not of the scenario: {@link OpenRewriteNpm} composes the
+     * transitive recipe alongside the direct one so that it need not be told which shape it is
+     * facing, and on npm — unlike the JVM pair — the transitive recipe also writes an override for
+     * a dependency that is already direct and already correct.
+     */
+    default boolean alsoPinsWithAnOverride() {
+        return false;
+    }
+
+    /**
+     * Whether the package manager reaches this column at all.
+     *
+     * <p>Only the recipe column sees one. The external columns are handed printed source text by
+     * {@link ExternalRemediation}, and markers are not printed, so the bytes they receive are
+     * identical whichever manager the fixture names. Running them three times measures nothing and
+     * costs three subprocesses.
+     */
+    default boolean readsPackageManager() {
+        return false;
+    }
+
     /** A toolchain nobody installed is a cell with no answer, which is not a refusal. */
     default boolean isInstalled() {
         return true;
@@ -58,9 +82,10 @@ public sealed interface NpmRemediator permits OpenRewriteNpm, RenovateNpm, Depen
      * regenerates through a different one per manager.
      */
     static Stream<Arguments> allAcrossManagers() {
-        return all().flatMap(remediator ->
-          Stream.of(PackageManager.Npm, PackageManager.Pnpm, PackageManager.YarnBerry)
-            .map(pm -> Arguments.of(remediator, pm)));
+        return all().flatMap(remediator -> (remediator.readsPackageManager()
+          ? Stream.of(PackageManager.Npm, PackageManager.Pnpm, PackageManager.YarnBerry)
+          : Stream.of(PackageManager.Npm))
+          .map(pm -> Arguments.of(remediator, pm)));
     }
 
     static Stream<NpmRemediator> all() {

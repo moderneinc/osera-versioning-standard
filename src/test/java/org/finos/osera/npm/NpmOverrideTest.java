@@ -77,19 +77,13 @@ public record NpmOverrideTest(PackageVersioning versioning) {
     }
 
     private static String manifestWithOverride(PackageManager pm, String logger, String constraint) {
-        String override = switch (pm) {
-            case Npm -> "\"overrides\": { \"%s\": \"%s\" }".formatted(logger, constraint);
-            case Pnpm -> "\"pnpm\": { \"overrides\": { \"%s\": \"%s\" } }".formatted(logger, constraint);
-            case YarnBerry, YarnClassic -> "\"resolutions\": { \"%s\": \"%s\" }".formatted(logger, constraint);
-            case Bun -> throw new IllegalArgumentException("Bun is not measured");
-        };
         return """
           {
             "name": "consumer",
             "version": "1.0.0",
             "dependencies": { "%s": "^3.0.0" },
-            %s
+          %s
           }
-          """.formatted(WRAPPER, override);
+          """.formatted(WRAPPER, Overrides.member(pm, logger, constraint));
     }
 }

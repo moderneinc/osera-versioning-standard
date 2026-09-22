@@ -2,7 +2,6 @@ package org.finos.osera.npm;
 
 import org.finos.osera.fixers.npm.EachNpmRemediatorAndManager;
 import org.finos.osera.fixers.npm.NpmRemediator;
-import org.finos.osera.fixers.npm.OpenRewriteNpm;
 import org.finos.osera.providers.npm.PackageVersioning;
 import org.junit.jupiter.api.Test;
 import org.openrewrite.javascript.UpgradeDependencyVersion;
@@ -75,7 +74,7 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
         // npm — unlike the JVM pair — the transitive recipe also writes an override for a
         // dependency that is already direct and already correct, so the expected output carries
         // that redundancy rather than hiding it by running the recipes separately.
-        String after = remediator instanceof OpenRewriteNpm
+        String after = remediator.alsoPinsWithAnOverride()
           ? manifestWithRedundantOverride(pm, versioning.constraint(patched))
           : manifest(versioning.constraint(patched));
 
@@ -85,51 +84,17 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
             nodeResolutionResult(pm, dependency(PACKAGE, "~1.4.1"))));
     }
 
-    /**
-     * What OpenRewrite leaves behind: the declaration moved, and an override it did not need,
-     * under whichever key the package manager uses for one. Written out per manager rather than
-     * composed, because a text block interpolated into another loses its relative indentation and
-     * the whitespace is what is being compared.
-     */
+    /** What OpenRewrite leaves behind: the declaration moved, and an override it did not need. */
     private static String manifestWithRedundantOverride(PackageManager pm, String constraint) {
-        return switch (pm) {
-            case Npm -> """
-              {
-                "name": "consumer",
-                "version": "1.0.0",
-                "dependencies": {
-                  "%s": "%s"
-                },
-                "overrides": {
-                  "%s": "%s"
-                }
-              }""".formatted(PACKAGE, constraint, PACKAGE, constraint);
-            case YarnBerry, YarnClassic -> """
-              {
-                "name": "consumer",
-                "version": "1.0.0",
-                "dependencies": {
-                  "%s": "%s"
-                },
-                "resolutions": {
-                  "%s": "%s"
-                }
-              }""".formatted(PACKAGE, constraint, PACKAGE, constraint);
-            case Pnpm -> """
-              {
-                "name": "consumer",
-                "version": "1.0.0",
-                "dependencies": {
-                  "%s": "%s"
-                },
-                "pnpm": {
-                  "overrides": {
-                    "%s": "%s"
-                  }
-                }
-              }""".formatted(PACKAGE, constraint, PACKAGE, constraint);
-            case Bun -> throw new IllegalArgumentException("Bun is not measured");
-        };
+        return """
+          {
+            "name": "consumer",
+            "version": "1.0.0",
+            "dependencies": {
+              "%s": "%s"
+            },
+          %s
+          }""".formatted(PACKAGE, constraint, Overrides.member(pm, PACKAGE, constraint));
     }
 
     /**
@@ -145,7 +110,7 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
         versioning.publish(PACKAGE, "1.4.1", PackageVersioning.OSERA, 1);
         String newest = versioning.publish(PACKAGE, "1.4.1", PackageVersioning.OSERA, 2);
 
-        String after = remediator instanceof OpenRewriteNpm
+        String after = remediator.alsoPinsWithAnOverride()
           ? manifestWithRedundantOverride(pm, versioning.constraint(newest))
           : manifest(versioning.constraint(newest));
 
@@ -166,7 +131,7 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
 
         // OpenRewrite also pins the package from the root, which for a workspace is a reasonable
         // place for it: the root is where a pin applies to every member at once.
-        String rootAfter = remediator instanceof OpenRewriteNpm
+        String rootAfter = remediator.alsoPinsWithAnOverride()
           ? workspaceRootWithOverride(pm, versioning.constraint(patched))
           : null;
 
@@ -179,53 +144,22 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
               // OpenRewrite pins it here as well as in the root, so the same package ends up
               // constrained in three places: the member's declaration, the member's overrides and
               // the root's. Recorded rather than hidden.
-              remediator instanceof OpenRewriteNpm
+              remediator.alsoPinsWithAnOverride()
                 ? manifestWithRedundantOverride(pm, versioning.constraint(patched))
                 : manifest(versioning.constraint(patched)),
               nodeResolutionResult(pm, dependency(PACKAGE, "~1.4.1")))));
     }
 
-    /**
-     * The root once OpenRewrite has pinned the package for every member. Written out per manager
-     * rather than composed: a text block interpolated into another loses its relative indentation,
-     * and whitespace is part of what is being compared.
-     */
+    /** The root once OpenRewrite has pinned the package for every member. */
     private static String workspaceRootWithOverride(PackageManager pm, String constraint) {
-        return switch (pm) {
-            case Npm -> """
-              {
-                "name": "consumer",
-                "version": "1.0.0",
-                "private": true,
-                "workspaces": [ "packages/*" ],
-                "overrides": {
-                  "%s": "%s"
-                }
-              }""".formatted(PACKAGE, constraint);
-            case Pnpm -> """
-              {
-                "name": "consumer",
-                "version": "1.0.0",
-                "private": true,
-                "workspaces": [ "packages/*" ],
-                "pnpm": {
-                  "overrides": {
-                    "%s": "%s"
-                  }
-                }
-              }""".formatted(PACKAGE, constraint);
-            case YarnBerry, YarnClassic -> """
-              {
-                "name": "consumer",
-                "version": "1.0.0",
-                "private": true,
-                "workspaces": [ "packages/*" ],
-                "resolutions": {
-                  "%s": "%s"
-                }
-              }""".formatted(PACKAGE, constraint);
-            case Bun -> throw new IllegalArgumentException("Bun is not measured");
-        };
+        return """
+          {
+            "name": "consumer",
+            "version": "1.0.0",
+            "private": true,
+            "workspaces": [ "packages/*" ],
+          %s
+          }""".formatted(Overrides.member(pm, PACKAGE, constraint));
     }
 
     /** A root that declares nothing itself and delegates to its members. */

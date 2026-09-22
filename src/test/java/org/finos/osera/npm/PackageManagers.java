@@ -2,8 +2,10 @@ package org.finos.osera.npm;
 
 import org.openrewrite.javascript.marker.NodeResolutionResult.PackageManager;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -33,6 +35,11 @@ public final class PackageManagers {
     private PackageManagers() {
     }
 
+    /** One phrasing for the arm every per-manager switch has to carry and none can reach. */
+    public static IllegalArgumentException notMeasured(PackageManager pm) {
+        return new IllegalArgumentException(pm + " is not measured");
+    }
+
     /**
      * The command prefix that runs this manager, as a list because Berry is not an executable of
      * its own: it is {@code corepack yarn}.
@@ -43,9 +50,11 @@ public final class PackageManagers {
             case Pnpm -> List.of(System.getProperty("osera.pnpm", "pnpm"));
             case YarnClassic -> List.of(System.getProperty("osera.yarn", "yarn"));
             case YarnBerry -> List.of(System.getProperty("osera.corepack", "corepack"), "yarn");
-            case Bun -> throw new IllegalArgumentException("Bun is not measured");
+            case Bun -> throw notMeasured(pm);
         };
     }
+
+    private static final Map<PackageManager, String> VERSIONS = new ConcurrentHashMap<>();
 
     /** Whether the manager runs at all, and reports the major version the scenarios expect. */
     public static boolean isUsable(PackageManager pm) {
@@ -54,8 +63,15 @@ public final class PackageManagers {
 
     /** What the manager says its version is, or an empty string if it cannot be run. */
     public static String version(PackageManager pm) {
+        // A version does not change mid-run, and every scenario asks before building a fixture.
+        return VERSIONS.computeIfAbsent(pm, PackageManagers::probeVersion);
+    }
+
+    private static String probeVersion(PackageManager pm) {
         try {
-            Process process = new ProcessBuilder(concat(command(pm), "--version"))
+            List<String> probe = new ArrayList<>(command(pm));
+            probe.add("--version");
+            Process process = new ProcessBuilder(probe)
               .redirectErrorStream(true)
               .start();
             process.getOutputStream().close();
@@ -64,13 +80,10 @@ public final class PackageManagers {
                 return "";
             }
             // corepack prints its own chatter before the version on first provision.
-            return output.isEmpty() ? "" : output.lines().reduce((first, last) -> last).orElse("");
+            return output.lines().reduce((first, last) -> last).orElse("");
         } catch (Exception e) {
             return "";
         }
     }
 
-    private static List<String> concat(List<String> command, String argument) {
-        return java.util.stream.Stream.concat(command.stream(), java.util.stream.Stream.of(argument)).toList();
-    }
 }

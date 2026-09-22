@@ -31,6 +31,16 @@ public final class OpenRewriteNpm implements NpmRemediator {
     }
 
     @Override
+    public boolean alsoPinsWithAnOverride() {
+        return true;
+    }
+
+    @Override
+    public boolean readsPackageManager() {
+        return true;
+    }
+
+    @Override
     public String toString() {
         return "OpenRewrite";
     }

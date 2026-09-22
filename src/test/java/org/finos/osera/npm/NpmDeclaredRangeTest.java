@@ -82,7 +82,7 @@ public record NpmDeclaredRangeTest(PackageVersioning versioning) {
         String patched = versioning.publish(pkg, "1.4.1");
 
         assertThat(NpmProject.resolve(versioning.registry(), pm, pkg, declared))
-          .as("%s installs %s for %s, where npm installs %s", pm, "what follows", declared, expected)
+          .as("what %s installs for %s, where npm installs %s", pm, declared, expected)
           .isEqualTo("PATCH".equals(expected) ? patched : expected);
     }
 }
