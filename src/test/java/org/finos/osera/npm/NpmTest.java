@@ -7,10 +7,13 @@ import org.finos.osera.providers.npm.PackageVersioning;
 import org.junit.jupiter.api.Test;
 import org.openrewrite.javascript.UpgradeDependencyVersion;
 
+import java.util.List;
+
 import static org.openrewrite.javascript.Assertions.dependency;
 import static org.openrewrite.javascript.Assertions.nodeResolutionResult;
 import static org.openrewrite.javascript.Assertions.packageJson;
 import static org.openrewrite.javascript.Assertions.packageLock;
+import static org.openrewrite.test.SourceSpecs.dir;
 import org.openrewrite.javascript.marker.NodeResolutionResult.PackageManager;
 
 import static org.openrewrite.javascript.marker.NodeResolutionResult.PackageManager.Npm;
@@ -127,6 +130,91 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
               }""".formatted(PACKAGE, constraint, PACKAGE, constraint);
             case Bun -> throw new IllegalArgumentException("Bun is not measured");
         };
+    }
+
+    /**
+     * The backpatch is declared by a workspace member, not the root. The analogue of the JVM's
+     * multiModule scenario: the declaration a tool has to reach is not in the file it starts from.
+     */
+    @EachNpmRemediatorAndManager
+    void workspaceMember(NpmRemediator remediator, PackageManager pm) {
+        versioning.publishUpstream(PACKAGE, "1.4.0", "1.4.1", "1.5.0", "2.0.0");
+        String patched = versioning.publish(PACKAGE, "1.4.1");
+
+        // OpenRewrite also pins the package from the root, which for a workspace is a reasonable
+        // place for it: the root is where a pin applies to every member at once.
+        String rootAfter = remediator instanceof OpenRewriteNpm
+          ? workspaceRootWithOverride(pm, versioning.constraint(patched))
+          : null;
+
+        rewriteRun(
+          NpmRemediator.asSpec(remediator, versioning, PACKAGE),
+          packageJson(workspaceRoot(), rootAfter,
+            nodeResolutionResult(pm, List.of("packages/member/package.json"))),
+          dir("packages/member",
+            packageJson(manifest("~1.4.1"),
+              // OpenRewrite pins it here as well as in the root, so the same package ends up
+              // constrained in three places: the member's declaration, the member's overrides and
+              // the root's. Recorded rather than hidden.
+              remediator instanceof OpenRewriteNpm
+                ? manifestWithRedundantOverride(pm, versioning.constraint(patched))
+                : manifest(versioning.constraint(patched)),
+              nodeResolutionResult(pm, dependency(PACKAGE, "~1.4.1")))));
+    }
+
+    /**
+     * The root once OpenRewrite has pinned the package for every member. Written out per manager
+     * rather than composed: a text block interpolated into another loses its relative indentation,
+     * and whitespace is part of what is being compared.
+     */
+    private static String workspaceRootWithOverride(PackageManager pm, String constraint) {
+        return switch (pm) {
+            case Npm -> """
+              {
+                "name": "consumer",
+                "version": "1.0.0",
+                "private": true,
+                "workspaces": [ "packages/*" ],
+                "overrides": {
+                  "%s": "%s"
+                }
+              }""".formatted(PACKAGE, constraint);
+            case Pnpm -> """
+              {
+                "name": "consumer",
+                "version": "1.0.0",
+                "private": true,
+                "workspaces": [ "packages/*" ],
+                "pnpm": {
+                  "overrides": {
+                    "%s": "%s"
+                  }
+                }
+              }""".formatted(PACKAGE, constraint);
+            case YarnBerry, YarnClassic -> """
+              {
+                "name": "consumer",
+                "version": "1.0.0",
+                "private": true,
+                "workspaces": [ "packages/*" ],
+                "resolutions": {
+                  "%s": "%s"
+                }
+              }""".formatted(PACKAGE, constraint);
+            case Bun -> throw new IllegalArgumentException("Bun is not measured");
+        };
+    }
+
+    /** A root that declares nothing itself and delegates to its members. */
+    private static String workspaceRoot() {
+        return """
+          {
+            "name": "consumer",
+            "version": "1.0.0",
+            "private": true,
+            "workspaces": [ "packages/*" ]
+          }
+          """;
     }
 
     private static String manifest(String constraint) {
