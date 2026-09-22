@@ -1,11 +1,10 @@
 package org.finos.osera.fixers.npm;
 
 import org.finos.osera.fixers.ext.ExternalRemediation;
-import org.finos.osera.fixers.ext.ToolProcess;
+import org.finos.osera.fixers.ext.RenovateProcess;
 import org.finos.osera.providers.npm.PackageVersioning;
 import org.openrewrite.Recipe;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -23,11 +22,6 @@ import static org.finos.osera.fixers.ext.ToolProcess.request;
  */
 public sealed interface RenovateNpm extends NpmRemediator permits RenovateNpm.Stock, RenovateNpm.Configured {
 
-    Path HOME = Path.of(System.getProperty("osera.renovate", "build/renovate"));
-
-    /** Node arrives through a version manager, so it is not necessarily on the PATH this JVM inherited. */
-    String NODE = System.getProperty("osera.node", "node");
-
     /** What this column passes down to Renovate's lookup. */
     Map<String, Object> lookup();
 
@@ -36,7 +30,7 @@ public sealed interface RenovateNpm extends NpmRemediator permits RenovateNpm.St
 
     @Override
     default boolean isInstalled() {
-        return Files.isDirectory(HOME.resolve("node_modules/renovate"));
+        return RenovateProcess.isInstalled();
     }
 
     @Override
@@ -50,9 +44,8 @@ public sealed interface RenovateNpm extends NpmRemediator permits RenovateNpm.St
 
             @Override
             public void run(Path directory, List<Path> files) {
-                ToolProcess.run(
-                  List.of(NODE, ToolProcess.script("tools/renovate/update.js", directory.getParent()).toString()),
-                  Map.of("RENOVATE_HOME", HOME.toAbsolutePath().toString()),
+                // No certificate bundle: this registry serves plain HTTP.
+                RenovateProcess.run(directory, Map.of(),
                   request(
                     "dir", directory.toString(),
                     "cacheDir", directory.getParent().resolve("renovate-cache").toString(),

@@ -1,11 +1,10 @@
 package org.finos.osera.fixers.npm;
 
 import org.finos.osera.fixers.ext.ExternalRemediation;
-import org.finos.osera.fixers.ext.ToolProcess;
+import org.finos.osera.fixers.ext.DependabotProcess;
 import org.finos.osera.providers.npm.PackageVersioning;
 import org.openrewrite.Recipe;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -25,14 +24,9 @@ import static org.finos.osera.fixers.ext.ToolProcess.request;
  */
 public final class DependabotNpm implements NpmRemediator {
 
-    private static final Path GEMS = Path.of(System.getProperty("osera.dependabot", "build/dependabot/gems"));
-
-    /** The system Ruby on macOS is 2.6 and too old for the gems; {@code -Posera.ruby} names a newer one. */
-    private static final String RUBY = System.getProperty("osera.ruby", "ruby");
-
     @Override
     public boolean isInstalled() {
-        return Files.isDirectory(GEMS.resolve("gems"));
+        return DependabotProcess.isInstalled();
     }
 
     @Override
@@ -45,9 +39,8 @@ public final class DependabotNpm implements NpmRemediator {
 
             @Override
             public void run(Path directory, List<Path> files) {
-                ToolProcess.run(
-                  List.of(RUBY, ToolProcess.script("tools/dependabot/update.rb", directory.getParent()).toString()),
-                  Map.of("GEM_HOME", GEMS.toAbsolutePath().toString()),
+                // No certificate bundle: this registry serves plain HTTP.
+                DependabotProcess.run(directory, Map.of(),
                   request(
                     "dir", directory.toString(),
                     "ecosystem", "npm_and_yarn",

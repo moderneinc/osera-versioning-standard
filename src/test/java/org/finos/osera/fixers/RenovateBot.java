@@ -1,6 +1,7 @@
 package org.finos.osera.fixers;
 
 import org.finos.osera.fixers.ext.ExternalRemediation;
+import org.finos.osera.fixers.ext.RenovateProcess;
 import org.finos.osera.fixers.ext.ToolProcess;
 import org.finos.osera.providers.OseraMavenCentralCare;
 import org.finos.osera.providers.ProviderVersioning;
@@ -8,7 +9,6 @@ import org.finos.osera.providers.SemverV2BuildMetadata;
 import org.openrewrite.Recipe;
 import org.openrewrite.maven.tree.GroupArtifactVersion;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -17,14 +17,9 @@ import static org.finos.osera.fixers.ext.ToolProcess.request;
 
 public final class RenovateBot implements Remediator {
 
-    private static final Path HOME = Path.of(System.getProperty("osera.renovate", "build/renovate"));
-
-    /** Node arrives through a version manager, so it is not necessarily on the PATH this JVM inherited. */
-    private static final String NODE = System.getProperty("osera.node", "node");
-
     @Override
     public boolean isInstalled() {
-        return Files.isDirectory(HOME.resolve("node_modules/renovate"));
+        return RenovateProcess.isInstalled();
     }
 
     @Override
@@ -38,11 +33,8 @@ public final class RenovateBot implements Remediator {
             @Override
             public void run(Path directory, List<Path> files) {
                 boolean maven = files.stream().anyMatch(file -> file.endsWith("pom.xml"));
-                ToolProcess.run(
-                  List.of(NODE, ToolProcess.script("tools/renovate/update.js", directory.getParent()).toString()),
-                  Map.of(
-                    "RENOVATE_HOME", HOME.toAbsolutePath().toString(),
-                    "NODE_EXTRA_CA_CERTS", versioning.repository().certificateBundle().toString()),
+                RenovateProcess.run(directory,
+                  Map.of("NODE_EXTRA_CA_CERTS", versioning.repository().certificateBundle().toString()),
                   request(
                     "dir", directory.toString(),
                     "cacheDir", directory.getParent().resolve("renovate-cache").toString(),
