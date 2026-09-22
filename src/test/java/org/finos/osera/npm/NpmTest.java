@@ -1,6 +1,6 @@
 package org.finos.osera.npm;
 
-import org.finos.osera.fixers.npm.EachNpmRemediator;
+import org.finos.osera.fixers.npm.EachNpmRemediatorAndManager;
 import org.finos.osera.fixers.npm.NpmRemediator;
 import org.finos.osera.fixers.npm.OpenRewriteNpm;
 import org.finos.osera.providers.npm.PackageVersioning;
@@ -11,6 +11,8 @@ import static org.openrewrite.javascript.Assertions.dependency;
 import static org.openrewrite.javascript.Assertions.nodeResolutionResult;
 import static org.openrewrite.javascript.Assertions.packageJson;
 import static org.openrewrite.javascript.Assertions.packageLock;
+import org.openrewrite.javascript.marker.NodeResolutionResult.PackageManager;
+
 import static org.openrewrite.javascript.marker.NodeResolutionResult.PackageManager.Npm;
 
 /**
@@ -55,8 +57,8 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
           })));
     }
 
-    @EachNpmRemediator
-    void directDependency(NpmRemediator remediator) {
+    @EachNpmRemediatorAndManager
+    void directDependency(NpmRemediator remediator, PackageManager pm) {
         versioning.publishUpstream(PACKAGE, "1.4.0", "1.4.1", "1.5.0", "2.0.0");
         String patched = versioning.publish(PACKAGE, "1.4.1");
 
@@ -71,28 +73,60 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
         // dependency that is already direct and already correct, so the expected output carries
         // that redundancy rather than hiding it by running the recipes separately.
         String after = remediator instanceof OpenRewriteNpm
-          ? manifestWithRedundantOverride(versioning.constraint(patched))
+          ? manifestWithRedundantOverride(pm, versioning.constraint(patched))
           : manifest(versioning.constraint(patched));
 
         rewriteRun(
           NpmRemediator.asSpec(remediator, versioning, PACKAGE),
           packageJson(manifest("~1.4.1"), after,
-            nodeResolutionResult(Npm, dependency(PACKAGE, "~1.4.1"))));
+            nodeResolutionResult(pm, dependency(PACKAGE, "~1.4.1"))));
     }
 
-    /** What OpenRewrite leaves behind: the declaration moved, and an override it did not need. */
-    private static String manifestWithRedundantOverride(String constraint) {
-        return """
-          {
-            "name": "consumer",
-            "version": "1.0.0",
-            "dependencies": {
-              "%s": "%s"
-            },
-            "overrides": {
-              "%s": "%s"
-            }
-          }""".formatted(PACKAGE, constraint, PACKAGE, constraint);
+    /**
+     * What OpenRewrite leaves behind: the declaration moved, and an override it did not need,
+     * under whichever key the package manager uses for one. Written out per manager rather than
+     * composed, because a text block interpolated into another loses its relative indentation and
+     * the whitespace is what is being compared.
+     */
+    private static String manifestWithRedundantOverride(PackageManager pm, String constraint) {
+        return switch (pm) {
+            case Npm -> """
+              {
+                "name": "consumer",
+                "version": "1.0.0",
+                "dependencies": {
+                  "%s": "%s"
+                },
+                "overrides": {
+                  "%s": "%s"
+                }
+              }""".formatted(PACKAGE, constraint, PACKAGE, constraint);
+            case YarnBerry, YarnClassic -> """
+              {
+                "name": "consumer",
+                "version": "1.0.0",
+                "dependencies": {
+                  "%s": "%s"
+                },
+                "resolutions": {
+                  "%s": "%s"
+                }
+              }""".formatted(PACKAGE, constraint, PACKAGE, constraint);
+            case Pnpm -> """
+              {
+                "name": "consumer",
+                "version": "1.0.0",
+                "dependencies": {
+                  "%s": "%s"
+                },
+                "pnpm": {
+                  "overrides": {
+                    "%s": "%s"
+                  }
+                }
+              }""".formatted(PACKAGE, constraint, PACKAGE, constraint);
+            case Bun -> throw new IllegalArgumentException("Bun is not measured");
+        };
     }
 
     private static String manifest(String constraint) {

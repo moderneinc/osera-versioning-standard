@@ -3,6 +3,8 @@ package org.finos.osera.fixers.npm;
 import org.finos.osera.fixers.ext.ExternalRemediation;
 import org.finos.osera.providers.npm.PackageVersioning;
 import org.openrewrite.Recipe;
+import org.junit.jupiter.params.provider.Arguments;
+import org.openrewrite.javascript.marker.NodeResolutionResult.PackageManager;
 import org.openrewrite.test.RecipeSpec;
 
 import java.util.function.Consumer;
@@ -50,6 +52,17 @@ public sealed interface NpmRemediator permits OpenRewriteNpm, RenovateNpm, Depen
      * leaves of a nested sealed interface and the reflective walk only goes one level. A new column
      * has to be added here by hand.
      */
+    /**
+     * Every column against every package manager measured. Resolution is shared between them, but
+     * the lockfile writers are not: Dependabot ships four for this one ecosystem and OpenRewrite
+     * regenerates through a different one per manager.
+     */
+    static Stream<Arguments> allAcrossManagers() {
+        return all().flatMap(remediator ->
+          Stream.of(PackageManager.Npm, PackageManager.Pnpm, PackageManager.YarnBerry)
+            .map(pm -> Arguments.of(remediator, pm)));
+    }
+
     static Stream<NpmRemediator> all() {
         return Stream.of(
           new OpenRewriteNpm(),

@@ -1,6 +1,6 @@
 package org.finos.osera.npm;
 
-import org.finos.osera.fixers.npm.EachNpmRemediator;
+import org.finos.osera.fixers.npm.EachNpmRemediatorAndManager;
 import org.finos.osera.fixers.npm.NpmRemediator;
 import org.finos.osera.providers.npm.PackageVersioning;
 import org.junit.jupiter.api.Test;
@@ -8,6 +8,7 @@ import org.openrewrite.Tree;
 import org.openrewrite.javascript.UpgradeTransitiveDependencyVersion;
 import org.openrewrite.javascript.marker.NodeResolutionResult;
 import org.openrewrite.javascript.marker.NodeResolutionResult.Dependency;
+import org.openrewrite.javascript.marker.NodeResolutionResult.PackageManager;
 import org.openrewrite.javascript.marker.NodeResolutionResult.ResolvedDependency;
 
 import java.util.List;
@@ -47,12 +48,12 @@ public record NpmTransitiveTest(PackageVersioning versioning) implements NpmBuil
 
         rewriteRun(
           spec -> spec.recipe(new UpgradeTransitiveDependencyVersion(logger, "~1.5.0", null)),
-          packageJson(manifest(), withOverride(logger, "~1.5.0"), marker(logger)),
+          packageJson(manifest(), withOverride(logger, "~1.5.0"), marker(logger, Npm)),
           packageLock(lock(logger, "1.4.1"), null));
     }
 
-    @EachNpmRemediator
-    void transitiveDependency(NpmRemediator remediator) {
+    @EachNpmRemediatorAndManager
+    void transitiveDependency(NpmRemediator remediator, PackageManager pm) {
         String logger = versioning.freshPackage();
         versioning.publishUpstream(logger, "1.4.0", "1.4.1", "1.5.0", "2.0.0");
         versioning.registry().publish(WRAPPER, "3.0.0", Map.of(logger, "~1.4.1"));
@@ -60,7 +61,7 @@ public record NpmTransitiveTest(PackageVersioning versioning) implements NpmBuil
 
         rewriteRun(
           NpmRemediator.asSpec(remediator, versioning, logger),
-          packageJson(manifest(), withOverride(logger, versioning.constraint(patched)), marker(logger)),
+          packageJson(manifest(), withOverride(logger, versioning.constraint(patched)), marker(logger, pm)),
           // A consumer is only remediated once the lock pins the backpatch; a manifest that says
           // one thing while the lock installs another is not a fix. Measured separately from the
           // manifest because the two answers differ.
@@ -100,7 +101,7 @@ public record NpmTransitiveTest(PackageVersioning versioning) implements NpmBuil
     }
 
     /** The graph a real install would have produced: the logger sits under the wrapper. */
-    private static NodeResolutionResult marker(String logger) {
+    private static NodeResolutionResult marker(String logger, PackageManager pm) {
         return new NodeResolutionResult(
           Tree.randomId(), "consumer", "1.0.0", null, "package.json", null,
           List.of(new Dependency(WRAPPER, "^3.0.0", null)),
@@ -109,7 +110,7 @@ public record NpmTransitiveTest(PackageVersioning versioning) implements NpmBuil
             new ResolvedDependency(WRAPPER, "3.0.0",
               List.of(new Dependency(logger, "~1.4.1", null)), null, null, null, null, null),
             new ResolvedDependency(logger, "1.4.1", null, null, null, null, null, null)),
-          Npm, null, null);
+          pm, null, null);
     }
 
     private String lock(String logger, String resolved) {
