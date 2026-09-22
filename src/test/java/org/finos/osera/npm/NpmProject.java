@@ -113,7 +113,10 @@ public final class NpmProject {
         command.addAll(switch (pm) {
             case Npm -> List.of("--silent", "--no-audit", "--no-fund", "--prefer-online");
             case Pnpm -> List.of("--ignore-scripts", "--no-strict-peer-dependencies");
-            case YarnBerry, YarnClassic -> List.of("--mode", "skip-build");
+            case YarnBerry -> List.of("--mode", "skip-build");
+            // --mode is Berry's; Classic has its own flags and its own resolutions parser, which
+            // is the reason it is measured at all.
+            case YarnClassic -> List.of("--ignore-scripts", "--non-interactive");
             case Bun -> throw new IllegalArgumentException("Bun is not measured");
         });
         return command;

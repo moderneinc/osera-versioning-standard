@@ -26,6 +26,15 @@ import static org.openrewrite.javascript.marker.NodeResolutionResult.PackageMana
  * <p>This is the common case a backpatch exists for and the one the direct-dependency scenarios
  * cannot speak to: there is no declaration to rewrite, so a tool either reaches the resolution
  * graph or it does not. A column that declines is the measurement, not a gap.
+ *
+ * <p>Every cell here is red, and the OpenRewrite one is red for a reason that is not about this
+ * scheme. The recipe writes the right override — {@link NpmOverrideTest} shows all three package
+ * managers then install the backpatch from it — but its lock regeneration does not honour the
+ * override, so the manifest and the lock disagree and {@code npm ci} refuses the result. The
+ * closure resolver behind {@code NativeLockEngine} has no notion of overrides, recomputes the same
+ * graph, and reports success. Reproduced against real npmjs with no fixtures, on an ordinary
+ * version bump with no backpatch involved. Upstream defect; these cells stay red until it is
+ * fixed rather than being worked around here.
  */
 public record NpmTransitiveTest(PackageVersioning versioning) implements NpmBuild {
 
