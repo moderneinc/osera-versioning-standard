@@ -31,8 +31,8 @@ public class ProviderVersioningResolver implements ParameterResolver {
 
     /** Each sealed hierarchy of schemes, and the property naming one when no suite is running. */
     private static final Map<Class<?>, String> SCHEMES = Map.of(
-      ProviderVersioning.class, "osera.versioning",
-      PackageVersioning.class, "osera.npm.versioning");
+      ProviderVersioning.class, "osera.versioning.jvm",
+      PackageVersioning.class, "osera.versioning.npm");
 
     private static final Pattern SUITE_SEGMENT = Pattern.compile("\\[suite:([^\\]]+)\\]");
     private static final ExtensionContext.Namespace NAMESPACE = ExtensionContext.Namespace.create(ProviderVersioningResolver.class);
