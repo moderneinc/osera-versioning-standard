@@ -133,6 +133,29 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
     }
 
     /**
+     * Two backpatches exist; the tool should write the newer.
+     *
+     * <p>The npm equivalent of the JVM's {@code secondPatch}, and the only place anything acts on
+     * the zero-padding. {@code NextPatchPrereleaseTest} asserts {@code osera-00010} sorts above
+     * {@code osera-00009} as a string; this asserts a tool picks accordingly.
+     */
+    @EachNpmRemediatorAndManager
+    void secondBackpatch(NpmRemediator remediator, PackageManager pm) {
+        versioning.publishUpstream(PACKAGE, "1.4.0", "1.4.1", "1.5.0", "2.0.0");
+        versioning.publish(PACKAGE, "1.4.1", PackageVersioning.OSERA, 1);
+        String newest = versioning.publish(PACKAGE, "1.4.1", PackageVersioning.OSERA, 2);
+
+        String after = remediator instanceof OpenRewriteNpm
+          ? manifestWithRedundantOverride(pm, versioning.constraint(newest))
+          : manifest(versioning.constraint(newest));
+
+        rewriteRun(
+          NpmRemediator.asSpec(remediator, versioning, PACKAGE),
+          packageJson(manifest("~1.4.1"), after,
+            nodeResolutionResult(pm, dependency(PACKAGE, "~1.4.1"))));
+    }
+
+    /**
      * The backpatch is declared by a workspace member, not the root. The analogue of the JVM's
      * multiModule scenario: the declaration a tool has to reach is not in the file it starts from.
      */
