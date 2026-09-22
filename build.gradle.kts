@@ -128,6 +128,11 @@ fun tool(name: String, vararg candidates: String) = providers.gradleProperty("os
 val node = tool("node", "node")
 val npm = tool("npm", "npm")
 val ruby = tool("ruby", "/usr/local/opt/ruby/bin/ruby", "/opt/homebrew/opt/ruby/bin/ruby", "ruby")
+// Yarn Berry is reached through corepack: a Homebrew yarn on the PATH is Classic and shadows the
+// shim. Classic is wanted too, for the resolutions key form it is reported to mis-parse.
+val pnpm = tool("pnpm", "pnpm")
+val yarn = tool("yarn", "yarn")
+val corepack = tool("corepack", "corepack")
 
 val installRenovate by tasks.registering(Exec::class) {
     description = "Installs Renovate, one half of the remediation matrix that is not a recipe"
@@ -189,6 +194,9 @@ tasks.withType<Test>().configureEach {
     // What each external tool decided, in its own words, next to the report that summarises it.
     systemProperty("osera.tools.log", layout.buildDirectory.dir("tool-logs").get().asFile.absolutePath)
     npm.orNull?.let { systemProperty("osera.npm", it) }
+    pnpm.orNull?.let { systemProperty("osera.pnpm", it) }
+    yarn.orNull?.let { systemProperty("osera.yarn", it) }
+    corepack.orNull?.let { systemProperty("osera.corepack", it) }
     node.orNull?.let { systemProperty("osera.node", it) }
     ruby.orNull?.let { systemProperty("osera.ruby", it) }
 }
