@@ -1,6 +1,7 @@
 package org.finos.osera.npm;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.finos.osera.Directories;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -23,8 +24,9 @@ public final class NpmProject {
      * @return the version npm resolved {@code name} to, or {@code "nothing"} if it resolved none.
      */
     public static String resolve(MockNpmRegistry registry, String name, String declared) {
+        Path project = null;
         try {
-            Path project = Files.createTempDirectory("osera-npm");
+            project = Files.createTempDirectory("osera-npm");
             Files.writeString(project.resolve("package.json"), """
               {
                 "name": "consumer",
@@ -61,6 +63,11 @@ public final class NpmProject {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException(e);
+        } finally {
+            // A node_modules tree and a whole npm cache per probe, twenty-six probes a run.
+            if (project != null) {
+                Directories.deleteRecursively(project);
+            }
         }
     }
 }

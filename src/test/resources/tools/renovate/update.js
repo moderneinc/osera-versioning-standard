@@ -29,19 +29,16 @@ async function main() {
         if ((dep.packageName ?? dep.depName) !== target.packageName) {
           continue;
         }
+        // lookupUpdates is called directly, below the layer that applies Renovate's default
+        // config, so a default only applies here if it is passed. This script therefore holds no
+        // configuration of its own: every option comes from the column, which is the only way a
+        // column claiming to represent Renovate's shipped defaults can be checked against them.
         const lookup = await lookupUpdates({
           ...dep,
           packageName: target.packageName,
           versioning: request.versioning,
-          rangeStrategy: 'replace',
           allowedVersions: target.allowedVersions,
           registryUrls: request.registryUrls,
-          separateMinorPatch: true,
-          updatePinnedDependencies: true,
-          respectLatest: false,
-          // lookupUpdates is called directly, below the layer that applies Renovate's default
-          // config, so a default only applies here if it is passed. The stock column passes the
-          // shipped values; the configured column passes what a consumer would have to set.
           ...request.lookup,
         }).then(unwrap);
 

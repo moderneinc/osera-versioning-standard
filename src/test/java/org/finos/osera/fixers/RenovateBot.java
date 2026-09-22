@@ -37,6 +37,12 @@ public final class RenovateBot implements Remediator {
                   Map.of("NODE_EXTRA_CA_CERTS", versioning.repository().certificateBundle().toString()),
                   request(
                     "dir", directory.toString(),
+                    // What the script used to impose on every caller, stated here instead.
+                    "lookup", Map.of(
+                      "rangeStrategy", "replace",
+                      "separateMinorPatch", true,
+                      "updatePinnedDependencies", true,
+                      "respectLatest", false),
                     "cacheDir", directory.getParent().resolve("renovate-cache").toString(),
                     // Renovate picks a versioning module per manager, and the two do not agree
                     // about a patch qualifier. Letting it pick is the point.

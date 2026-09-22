@@ -1,6 +1,7 @@
 package org.finos.osera.npm;
 
 import org.finos.osera.providers.npm.PackageVersioning;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -19,30 +20,31 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 public record NpmWrittenConstraintTest(PackageVersioning versioning) {
 
-    @ParameterizedTest(name = "{0} once the registry also holds {1}")
-    @CsvSource(delimiter = '|', textBlock = """
-      ~1.4.2-osera-00001 | nothing more              |                    | 1.4.2-osera-00001
-      ~1.4.2-osera-00001 | our second backpatch      |                    | 1.4.2-osera-00002
-      ~1.4.2-osera-00001 | the maintainer's 1.4.2    | 1.4.2              | 1.4.2
-      ~1.4.2-osera-00001 | the maintainer's 1.4.3    | 1.4.2,1.4.3        | 1.4.3
-      ~1.4.2-osera-00001 | an unreleased 1.4.2-rc.1  | 1.4.2-rc.1         | 1.4.2-osera-00001
-      ~1.4.2-osera-00001 | a rival's backpatch       | 1.4.2-zenith-00001 | 1.4.2-osera-00001
-      1.4.2-osera-00001  | nothing more              |                    | 1.4.2-osera-00001
-      1.4.2-osera-00001  | our second backpatch      |                    | 1.4.2-osera-00002
-      1.4.2-osera-00001  | the maintainer's 1.4.2    | 1.4.2              | 1.4.2
-      ^1.4.2-osera-00001 | nothing more              |                    | 1.4.2-osera-00001
-      ^1.4.2-osera-00001 | the maintainer's 1.4.2    | 1.4.2              | 1.4.2
-      """)
-    void landsOnTheRightVersion(String constraint, String description, String alsoPublished, String expected) {
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', nullValues = "-", textBlock = """
+      constraint         | registry also holds       | ours | upstream           | resolves to
+      ~1.4.2-osera-00001 | nothing more              | 1    | -                  | 1.4.2-osera-00001
+      ~1.4.2-osera-00001 | our second backpatch      | 2    | -                  | 1.4.2-osera-00002
+      ~1.4.2-osera-00001 | the maintainer's 1.4.2    | 1    | 1.4.2              | 1.4.2
+      ~1.4.2-osera-00001 | the maintainer's 1.4.3    | 1    | 1.4.2,1.4.3        | 1.4.3
+      ~1.4.2-osera-00001 | an unreleased 1.4.2-rc.1  | 1    | 1.4.2-rc.1         | 1.4.2-osera-00001
+      ~1.4.2-osera-00001 | a rival's backpatch       | 1    | 1.4.2-zenith-00001 | 1.4.2-osera-00001
+      1.4.2-osera-00001  | nothing more              | 1    | -                  | 1.4.2-osera-00001
+      1.4.2-osera-00001  | our second backpatch      | 2    | -                  | 1.4.2-osera-00002
+      1.4.2-osera-00001  | the maintainer's 1.4.2    | 1    | 1.4.2              | 1.4.2
+      ^1.4.2-osera-00001 | nothing more              | 1    | -                  | 1.4.2-osera-00001
+      ^1.4.2-osera-00001 | the maintainer's 1.4.2    | 1    | 1.4.2              | 1.4.2
+      """, useHeadersInDisplayName = true)
+    void landsOnTheRightVersion(String constraint, String description, int ours,
+                                @Nullable String upstream, String expected) {
         // Its own package: each row publishes a different future and must not see another row's.
         String pkg = versioning.freshPackage();
         versioning.publishUpstream(pkg, "1.4.0", "1.4.1", "1.5.0", "2.0.0");
-        versioning.publish(pkg, "1.4.1");
-        if (description.startsWith("our second")) {
-            versioning.publish(pkg, "1.4.1", PackageVersioning.OSERA, 2);
+        for (int sequence = 1; sequence <= ours; sequence++) {
+            versioning.publish(pkg, "1.4.1", PackageVersioning.OSERA, sequence);
         }
-        if (alsoPublished != null && !alsoPublished.isBlank()) {
-            versioning.publishUpstream(pkg, alsoPublished.split(","));
+        if (upstream != null) {
+            versioning.publishUpstream(pkg, upstream.split(","));
         }
 
         assertThat(NpmProject.resolve(versioning.registry(), pkg, constraint))

@@ -61,11 +61,21 @@ public sealed interface RenovateNpm extends NpmRemediator permits RenovateNpm.St
         });
     }
 
-    /** Renovate as installed, configured with nothing. */
+    /**
+     * Renovate as installed, configured with nothing.
+     *
+     * <p>Every value here is what {@code getOptions()} reports as the shipped default, so that the
+     * column measures a consumer who changed nothing rather than one this suite half-configured.
+     */
     final class Stock implements RenovateNpm {
         @Override
         public Map<String, Object> lookup() {
-            return Map.of("ignoreUnstable", true, "respectLatest", true);
+            return Map.of(
+              "rangeStrategy", "auto",
+              "separateMinorPatch", false,
+              "updatePinnedDependencies", true,
+              "ignoreUnstable", true,
+              "respectLatest", true);
         }
 
         @Override
@@ -84,7 +94,14 @@ public sealed interface RenovateNpm extends NpmRemediator permits RenovateNpm.St
     final class Configured implements RenovateNpm {
         @Override
         public Map<String, Object> lookup() {
-            return Map.of("ignoreUnstable", false, "respectLatest", false);
+            // The defaults, with the two that hide a prerelease backpatch turned off. That pair is
+            // what the recommendation has to tell a consumer to set.
+            return Map.of(
+              "rangeStrategy", "replace",
+              "separateMinorPatch", false,
+              "updatePinnedDependencies", true,
+              "ignoreUnstable", false,
+              "respectLatest", false);
         }
 
         @Override

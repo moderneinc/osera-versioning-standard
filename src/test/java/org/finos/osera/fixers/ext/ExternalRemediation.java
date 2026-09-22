@@ -1,5 +1,6 @@
 package org.finos.osera.fixers.ext;
 
+import org.finos.osera.Directories;
 import org.jspecify.annotations.Nullable;
 import org.openrewrite.ExecutionContext;
 import org.openrewrite.Parser;
@@ -135,7 +136,7 @@ public final class ExternalRemediation extends ScanningRecipe<ExternalRemediatio
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             } finally {
-                deleteRecursively(work);
+                Directories.deleteRecursively(work);
             }
         }
 
@@ -184,20 +185,6 @@ public final class ExternalRemediation extends ScanningRecipe<ExternalRemediatio
     private static Path createTemporaryDirectory() {
         try {
             return Files.createTempDirectory("osera-remediation");
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    private static void deleteRecursively(Path directory) {
-        try (Stream<Path> paths = Files.walk(directory)) {
-            paths.sorted(Comparator.reverseOrder()).forEach(path -> {
-                try {
-                    Files.deleteIfExists(path);
-                } catch (IOException e) {
-                    throw new UncheckedIOException(e);
-                }
-            });
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
