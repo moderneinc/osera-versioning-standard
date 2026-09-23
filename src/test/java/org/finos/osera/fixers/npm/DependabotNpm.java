@@ -33,7 +33,6 @@ public final class DependabotNpm implements NpmRemediator {
 
             @Override
             public void run(Path directory, List<Path> files) {
-                // No certificate bundle: this registry serves plain HTTP.
                 DependabotProcess.run(directory, Map.of(),
                   request(
                     "dir", directory.toString(),

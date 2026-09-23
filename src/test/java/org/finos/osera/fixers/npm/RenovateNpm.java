@@ -39,7 +39,6 @@ public sealed interface RenovateNpm extends NpmRemediator permits RenovateNpm.St
 
             @Override
             public void run(Path directory, List<Path> files) {
-                // No certificate bundle: this registry serves plain HTTP.
                 RenovateProcess.run(directory, Map.of(),
                   request(
                     "dir", directory.toString(),
@@ -85,8 +84,7 @@ public sealed interface RenovateNpm extends NpmRemediator permits RenovateNpm.St
     final class Configured implements RenovateNpm {
         @Override
         public Map<String, Object> lookup() {
-            // The shipped defaults with one change, ignoreUnstable, plus the allowedVersions
-            // below. Measured: rangeStrategy replace and respectLatest false moved no cell.
+            // The shipped defaults, with the one that hides a prerelease turned off.
             return Map.of(
               "rangeStrategy", "auto",
               "separateMajorMinor", true,

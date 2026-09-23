@@ -33,9 +33,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * what an internal registry does in production. This scheme publishes no scope, so a consumer
  * cannot route the package anywhere else and points at exactly one registry.
  *
- * <p>Plain HTTP, unlike {@code MockMavenRepository}: nothing here measures TLS, and every npm
- * client, Renovate and Dependabot would otherwise each need its own CA configuration. That is why
- * {@code NpmProject} whitelists the host for Yarn Berry.
+ * <p>Plain HTTP, unlike {@code MockMavenRepository}, because nothing here measures TLS and six
+ * clients would otherwise each need a CA configuring. Hence Yarn Berry's whitelist entry.
  */
 public final class MockNpmRegistry {
 

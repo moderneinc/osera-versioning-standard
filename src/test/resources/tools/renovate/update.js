@@ -42,13 +42,9 @@ async function main() {
           ...request.lookup,
         }).then(unwrap);
 
-        // Renovate opens a pull request per update, so a lookup can return several and a consumer
-        // sees all of them. This applies the first and records the rest; what matters to a cell is
-        // whether any of them reached the producer's backpatch.
+        // Renovate opens a pull request per update, so a lookup can return several. This applies
+        // the first and records them all, because what decides a cell is whether any of them got there.
         const update = (lookup.updates ?? [])[0];
-        // Every update Renovate offered, not only the one applied: with separateMajorMinor at its
-        // default a stock lookup can return a minor alongside the major, and a column that reports
-        // only the first would describe whichever happened to sort first as the whole answer.
         const entry = { file: packageFile.packageFile, dep: target.packageName, skipReason: lookup.skipReason,
           update, offered: (lookup.updates ?? []).map((u) => ({ type: u.updateType, newValue: u.newValue })),
           dependency: dep };
