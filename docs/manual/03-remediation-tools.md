@@ -298,27 +298,13 @@ migration to the next major and call it an update, which is worse than missing t
 because it looks like an answer and a consumer who takes it has changed their major version to fix
 a patch-level vulnerability.
 
-**OpenRewrite**'s reds come from two defects, and neither is about OSERA. Both reproduce on an
-ordinary version bump with no backpatch involved, and both are in the same recipe,
-`UpgradeTransitiveDependencyVersion`.
-
-The first is the stale lock above. `NativeLockEngine` defers an override edit with
-`RESOLUTION_REQUIRED`, that reason is in `RESOLVABLE_REASONS`, and the whole-closure resolver it
-falls back to has no notion of overrides, so it recomputes the same graph and reports success.
-Reproduced against real npmjs on an `is-number` 6 to 7 bump with no fixtures involved.
-
-The second is why every `OpenRewrite` cell above carries a footnote about pnpm. On pnpm the recipe
-never stabilises: it keeps changing the manifest on every cycle, so the cell fails before any
-assertion about content is reached. Running the two composed recipes separately shows which one it
-is. `UpgradeDependencyVersion` alone converges on pnpm; the transitive one alone does not.
-
-That second defect is also why the catalog table's pnpm cells cannot show what the recipe did,
-while the Yarn cells can. The diff printed in the catalog section came from running the recipe
-outside the suite, because inside it the pnpm cells die first.
-
-Neither is a result about the version format, and both are fixable in a tool this working group's
-members maintain. That is a different kind of red from Dependabot's, which is a design decision
-about prereleases, and the chapter would be misread if the two were counted together.
+**OpenRewrite**'s reds are two defects in `UpgradeTransitiveDependencyVersion`, and both reproduce
+on an ordinary version bump with no backpatch involved. `NativeLockEngine` defers an override edit
+with `RESOLUTION_REQUIRED`, a reason listed in `RESOLVABLE_REASONS`, and the whole-closure resolver
+it falls back to has no notion of overrides, so it recomputes the same graph and reports success.
+Separately the recipe never stabilises on pnpm, which is what the footnote in the first table
+refers to: run the two composed recipes apart and `UpgradeDependencyVersion` converges there while
+the transitive one does not.
 
 ### What we have not measured
 
