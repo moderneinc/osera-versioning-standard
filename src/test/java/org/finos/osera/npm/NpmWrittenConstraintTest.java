@@ -10,13 +10,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * What a remediation tool should write, measured as the registry fills up around it.
  *
- * <p>npm's {@code UpgradeDependencyVersion} takes a literal constraint rather than a selector, so
- * there is no discovery to measure and the constraint is what the standard has to mandate.
- *
- * <p>The assertion is the intent, not the observed answer: a constraint behaves if the consumer
- * lands on the newest backpatch this producer has published until the maintainer ships, on the
- * maintainer's release once it exists, and never leaves the line. Rows that go red are the cost of
- * the constraint on that row, and the recommendation is the column with the fewest of them.
+ * <p>The assertion is the intent rather than the observed answer: a constraint behaves if the
+ * consumer lands on this producer's newest backpatch until the maintainer ships, on the
+ * maintainer's release once it exists, and never leaves the line. Reds are what each costs.
  */
 public record NpmWrittenConstraintTest(PackageVersioning versioning) {
 

@@ -11,12 +11,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
- * Whether the override a remediator writes actually reaches the consumer.
- *
- * <p>The remediation matrix measures what a tool writes. This measures whether what it wrote
- * works, which is a different question and the one that decides whether a transitive backpatch is
- * deliverable at all. Each manager spells an override differently and OpenRewrite already writes
- * the right key for each; what is unmeasured is whether the key then takes effect at install.
+ * Whether the override a remediator writes actually reaches the consumer. The matrix measures what
+ * a tool writes; this measures whether it works, which is what decides whether a transitive
+ * backpatch is deliverable at all.
  */
 public record NpmOverrideTest(PackageVersioning versioning) {
 

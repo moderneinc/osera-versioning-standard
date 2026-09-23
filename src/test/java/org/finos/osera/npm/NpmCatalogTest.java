@@ -19,28 +19,15 @@ import static org.openrewrite.javascript.Assertions.packageJson;
 import static org.openrewrite.yaml.Assertions.yaml;
 
 /**
- * A version that does not live in the manifest at all.
- *
- * <p>The npm analogue of the JVM's version catalogs, which chapter 3 gives a table of their own
- * because a tool that reads one spelling of a catalog does not necessarily read the rest. A catalog
- * moves the version out of {@code package.json} and leaves a bare {@code "catalog:"} behind, so a
- * remediator that only knows how to rewrite a version literal in a manifest has nothing there to
- * edit, the same way Renovate has nothing to edit in the JVM's imported-BOM and managed-parent
- * rows.
- *
- * <p>Four spellings, which is the whole surface: pnpm and Yarn each keep catalogs in a file of
- * their own, and each offers a default catalog and any number of named ones. npm has none. Unlike
- * the package-manager axis on the rest of the matrix this one is real for every column, because a
- * catalog is a source file the external tools are handed rather than a marker only the recipe
- * reads.
+ * A version that lives outside the manifest, which is the npm analogue of a Gradle version
+ * catalog. Four spellings is the whole surface: pnpm and Yarn each keep catalogs in a file of
+ * their own, and each offers a default catalog and named ones.
  */
 public record NpmCatalogTest(PackageVersioning versioning) implements NpmBuild {
 
-    /**
-     * Every way a catalog can hold a version. Each is a separate parse path in every tool, which is
-     * the argument chapter 3 makes for giving the Gradle catalog its own thirteen rows.
-     */
+    /** Each spelling is a separate parse path in every tool, so each gets a row. */
     public enum Catalog {
+        // packages is what makes this a workspace, the smallest project a pnpm catalog needs.
         PnpmDefault(PackageManager.Pnpm, "pnpm-workspace.yaml", "catalog:", """
           packages:
             - '.'
@@ -76,7 +63,6 @@ public record NpmCatalogTest(PackageVersioning versioning) implements NpmBuild {
             this.template = template;
         }
 
-        /** What the manifest writes in place of a version. */
         String reference() {
             return reference;
         }
@@ -90,14 +76,7 @@ public record NpmCatalogTest(PackageVersioning versioning) implements NpmBuild {
         }
     }
 
-    /**
-     * The catalog is not a second resolution path.
-     *
-     * <p>One row per spelling rather than the fifteen {@link NpmDeclaredRangeTest} runs, for the
-     * same reason that class spot-checks the other package managers rather than repeating itself:
-     * a catalog entry is a constraint like any other, and the question is only whether the manager
-     * treats it as one. If it does, everything already measured about ranges applies unchanged.
-     */
+    /** If a catalog entry is an ordinary constraint, {@link NpmDeclaredRangeTest} applies inside one. */
     @ParameterizedTest(name = "{0}")
     @EnumSource(Catalog.class)
     void aCatalogEntryResolvesLikeAnyOtherConstraint(Catalog catalog) {
@@ -122,19 +101,9 @@ public record NpmCatalogTest(PackageVersioning versioning) implements NpmBuild {
     }
 
     /**
-     * The consumer is held on the line by a catalog entry, and the backpatch exists. A tool that
-     * fixes this build moves the version where it actually lives.
-     *
-     * <p>The OpenRewrite cells are red for a reason that is not about catalogs, and the chapter
-     * must not read them as one. The recipe replaces the manifest's catalog reference with the
-     * literal constraint and leaves the catalog file untouched: it takes the package out of the
-     * catalog rather than updating it, which fixes this one member and leaves every other member of
-     * a real workspace on the vulnerable version. That is visible in the Yarn cells and not in the
-     * pnpm ones, because the column composes {@code UpgradeTransitiveDependencyVersion} and that
-     * recipe does not converge on pnpm, so those cells fail before any assertion about content is
-     * reached. Measured by running the two composed recipes separately:
-     * {@code UpgradeDependencyVersion} alone converges on pnpm, the transitive one alone does not.
-     * Same recipe as {@link NpmTransitiveTest}'s stale lock, and the same upstream issue.
+     * A tool that fixes this build edits the catalog. OpenRewrite instead overwrites the manifest's
+     * catalog reference with the constraint, taking the package out of the catalog; its pnpm cells
+     * fail earlier still, on {@code UpgradeTransitiveDependencyVersion} not converging there.
      */
     @ParameterizedTest(name = "{displayName} — {0} — {1}")
     @MethodSource("eachColumnAndCatalog")
@@ -145,9 +114,6 @@ public record NpmCatalogTest(PackageVersioning versioning) implements NpmBuild {
 
         rewriteRun(
           NpmRemediator.asSpec(remediator, versioning, logger),
-          // The manifest keeps its catalog reference before and after: there is no version in it
-          // to move, and a tool that wrote one here would be taking the package out of the catalog
-          // rather than updating it.
           packageJson(manifest(logger, catalog), null,
             nodeResolutionResult(catalog.pm, dependency(logger, catalog.reference()))),
           yaml(catalog.holding(logger, "~1.4.1"),

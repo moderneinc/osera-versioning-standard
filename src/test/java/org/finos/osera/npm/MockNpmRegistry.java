@@ -85,11 +85,7 @@ public final class MockNpmRegistry {
         publish(name, version, Map.of());
     }
 
-    /**
-     * As {@link #publish(String, String)}, for a version published at a stated moment rather than
-     * long ago. Yarn's age gate is the only thing that reads this, and only a scenario asking what
-     * the gate does needs to set it.
-     */
+    /** As {@link #publish(String, String)}, for a version published at a stated moment. */
     public void publish(String name, String version, Instant publishedAt) {
         publish(name, version, Map.of());
         published.put(name + "@" + version, ISO.format(publishedAt.atOffset(ZoneOffset.UTC)));
@@ -183,18 +179,9 @@ public final class MockNpmRegistry {
     }
 
     /**
-     * When every version this registry serves was published.
-     *
-     * <p>Yarn 4.10 added {@code npmMinimalAgeGate}, which defaults to 1440 minutes: a version the
-     * registry does not date, or dates within the last day, is quarantined and cannot be installed
-     * at all. Every Yarn cell that runs a real install went red on the bump to 4.18 for that
-     * reason, including ones resolving to an ordinary upstream release, so it is not a fact about
-     * backpatches and must not be measured as one.
-     *
-     * <p>A date well behind the gate is the honest default: most of these scenarios ask which
-     * version a manager picks, and a real registry dates what it serves. A scenario that is asking
-     * about the gate itself says when a version was published, through
-     * {@link #publish(String, String, Instant)}.
+     * Yarn quarantines a version the registry does not date, or dates inside the last day, so a
+     * date well behind its gate is the default here. {@link NpmPublishAgeTest} is what happens when
+     * a scenario sets one deliberately.
      */
     private static final String LONG_AGO = "2020-01-01T00:00:00.000Z";
 

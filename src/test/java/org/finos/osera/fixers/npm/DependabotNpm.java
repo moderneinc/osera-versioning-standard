@@ -12,15 +12,9 @@ import java.util.Map;
 import static org.finos.osera.fixers.ext.ToolProcess.request;
 
 /**
- * Dependabot's npm updater.
- *
- * <p>{@code LatestVersionFinder#filter_prerelease_versions} drops a prerelease unless
- * {@code related_to_current_pre?} holds, which needs the current version or a declared requirement
- * to already be a prerelease at the same release tuple. A consumer sitting on a stable release is
- * neither, so no configuration reaches the backpatch; what it is offered instead is the next major.
- *
- * <p>This is a different reason from the JVM columns, where {@code suffix_compatible?} rejects a
- * qualified candidate against an unqualified current version.
+ * Dependabot's npm updater. {@code filter_prerelease_versions} drops a prerelease unless the
+ * current version or a declared requirement is already one at the same tuple, so no configuration
+ * reaches the backpatch. A different reason from the JVM columns' {@code suffix_compatible?}.
  */
 public final class DependabotNpm implements NpmRemediator {
 

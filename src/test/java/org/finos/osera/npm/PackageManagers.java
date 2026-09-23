@@ -9,23 +9,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Which package managers this machine can actually run, and how to invoke each one.
+ * Which package managers this machine can actually run, and how to invoke each one. A manager that
+ * is absent is a cell with no answer rather than a refusal, so scenarios skip.
  *
- * <p>A manager that is absent is a cell the matrix has no answer for, which is not the same answer
- * as a manager that resolved the backpatch differently, so scenarios skip rather than fail.
- *
- * <p>Presence is not enough to go on. This machine had a pnpm on the PATH installed under Node 16
- * and running under Node 26, which dies on startup; and a Homebrew {@code yarn} that is Classic,
- * shadowing the corepack shim, where the matrix wants Berry. So each manager is asked for its
- * version and the major is checked.
+ * <p>Presence is not enough: a pnpm installed under an older Node dies on startup, and a Homebrew
+ * {@code yarn} is Classic where the matrix wants Berry, so each is asked for its version.
  */
 public final class PackageManagers {
 
-    /**
-     * The major version each manager is measured at. A different major is a different tool for
-     * this purpose: Yarn Classic and Yarn Berry disagree about resolution, and pnpm changed its
-     * default {@code resolution-mode} across majors.
-     */
+    /** A different major is a different tool here: Classic and Berry disagree about resolution. */
     private static final Map<PackageManager, Integer> MAJOR = Map.of(
       PackageManager.Npm, 11,
       PackageManager.Pnpm, 9,

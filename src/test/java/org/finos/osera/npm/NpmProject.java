@@ -14,11 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-/**
- * A throwaway consumer project, installed for real. The question every scenario here asks is which
- * version the package manager picked, so the answer is read out of what was installed rather than
- * inferred.
- */
+/** A throwaway consumer project, installed for real, so the answer is read out of what landed. */
 public final class NpmProject {
 
     private static final ObjectMapper JSON = new ObjectMapper();
@@ -58,10 +54,7 @@ public final class NpmProject {
     }
 
     /**
-     * As {@link #install(MockNpmRegistry, PackageManager, String, String)}, for a manifest that
-     * does not hold the version itself. A pnpm catalog keeps it in {@code pnpm-workspace.yaml},
-     * which has to be on disk beside the manifest or the manifest's {@code catalog:} resolves to
-     * nothing.
+     * As above, for a manifest that does not hold the version itself, such as a catalog reference.
      *
      * @param alongside file name to contents, written into the project root
      */
@@ -71,18 +64,13 @@ public final class NpmProject {
         try {
             project = Files.createTempDirectory("osera-npm");
             Files.writeString(project.resolve("package.json"), manifest);
-            // Its own cache, because a packument is cached per registry origin and these scenarios
-            // change what a single origin serves between probes.
+            // Its own cache: a packument is cached per origin, and these scenarios change what one serves.
             Files.writeString(project.resolve(".npmrc"),
               "registry=%s\ncache=%s\n".formatted(registry.url(), project.resolve("cache"))
-              // pnpm symlinks by default, so a transitive lives under .pnpm rather than at
-              // node_modules/<name>. Hoisting makes the tree the same shape npm produces, which
-              // is what "which version did it install" is read from. The Berry equivalent is
-              // nodeLinker below.
+              // pnpm symlinks by default, so hoist to get the tree shape this reads from.
               + (pm == PackageManager.Pnpm ? "node-linker=hoisted\n" : ""));
             if (pm == PackageManager.YarnBerry) {
-                // Berry reads neither the registry nor the linker from .npmrc, and refuses a
-                // plaintext http registry unless it is whitelisted.
+                // Berry reads neither from .npmrc, and refuses plaintext http unless whitelisted.
                 Files.writeString(project.resolve(".yarnrc.yml"), """
                   nodeLinker: node-modules
                   enableGlobalCache: false
@@ -91,9 +79,7 @@ public final class NpmProject {
                     - 127.0.0.1
                   """.formatted(registry.url()));
             }
-            // Appended rather than written, and written last, because a Yarn catalog lives in the
-            // .yarnrc.yml this method has just filled with registry settings. Replacing that file
-            // would take the registry with it; a YAML document takes another top-level key.
+            // Appended, and last: a Yarn catalog shares .yarnrc.yml with the registry settings above.
             for (Map.Entry<String, String> file : alongside.entrySet()) {
                 Files.writeString(project.resolve(file.getKey()), file.getValue(),
                   StandardOpenOption.CREATE, StandardOpenOption.APPEND);
@@ -104,7 +90,7 @@ public final class NpmProject {
               .redirectErrorStream(true)
               .start();
             install.getOutputStream().close();
-            // Reading to EOF already waits for the process, so waitFor only collects the status.
+            // Reading to EOF already waits; waitFor only collects the status.
             String output = new String(install.getInputStream().readAllBytes());
             if (!install.waitFor(300, TimeUnit.SECONDS)) {
                 install.destroyForcibly();
@@ -127,7 +113,7 @@ public final class NpmProject {
             Thread.currentThread().interrupt();
             throw new IllegalStateException(e);
         } finally {
-            // A node_modules tree and a whole cache per probe, dozens of probes a run.
+            // A node_modules tree and a cache per probe, dozens of probes a run.
             if (project != null) {
                 Directories.deleteRecursively(project);
             }
@@ -151,11 +137,7 @@ public final class NpmProject {
         return command;
     }
 
-    /**
-     * Whether the manager declined rather than broke. Each phrases it differently, and Yarn has two
-     * ways to decline: nothing satisfies the range, or everything that does is too newly published
-     * for its age gate to allow.
-     */
+    /** Whether the manager declined rather than broke. Each phrases it differently. */
     private static boolean refused(String output) {
         return output.contains("No matching version")
                || output.contains("No candidates found")

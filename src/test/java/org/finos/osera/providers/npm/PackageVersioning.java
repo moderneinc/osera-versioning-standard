@@ -28,12 +28,8 @@ public sealed abstract class PackageVersioning permits NextPatchPrerelease {
     }
 
     /**
-     * A package name no other scenario is using.
-     *
-     * <p>One registry serves the whole run, because the scheme is instantiated once per suite. Most
-     * of these scenarios evolve what the registry holds — a later backpatch, the maintainer's
-     * release, a rival's — so sharing a package name between two of them would let one scenario's
-     * future leak into another's present.
+     * A package name no other scenario is using. One registry serves the whole run and most
+     * scenarios evolve what it holds, so a shared name leaks one scenario's future into another.
      */
     public final String freshPackage() {
         return "acme-logger-" + packages.incrementAndGet();
@@ -55,13 +51,7 @@ public sealed abstract class PackageVersioning permits NextPatchPrerelease {
         return patched;
     }
 
-    /**
-     * As {@link #publish(String, String)}, for a backpatch the producer has only just released.
-     *
-     * <p>Which is the normal case: a backpatch exists because a vulnerability was disclosed, so it
-     * is new when a consumer most needs it. Yarn's {@code npmMinimalAgeGate} is the only thing
-     * measured here that reads a publish date.
-     */
+    /** As {@link #publish(String, String)}, for a backpatch the producer has only just released. */
     public final String publishJustNow(String name, String base) {
         String patched = version(base, OSERA, 1);
         registry.publish(name, patched, Instant.now());
@@ -76,10 +66,8 @@ public sealed abstract class PackageVersioning permits NextPatchPrerelease {
     }
 
     /**
-     * The newest backpatch this producer has published for the package.
-     *
-     * <p>Which versions are this producer's is a property of the scheme, since the scheme is what
-     * spells them, so the fixers ask rather than each matching on the producer token themselves.
+     * The newest backpatch this producer has published. Which versions are theirs is a property of
+     * the scheme, so the fixers ask rather than matching on the token themselves.
      */
     public final String newestBackpatch(String name) {
         return registry.published(name).stream()

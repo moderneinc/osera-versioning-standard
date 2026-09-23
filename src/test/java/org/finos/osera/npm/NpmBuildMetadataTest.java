@@ -6,23 +6,12 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The other scheme the suite measures, asked of npm.
+ * The other scheme the suite measures, asked of npm. SemVer §11 excludes build metadata from
+ * precedence, so {@code 1.4.1+osera.1} and {@code 1.4.1} are the same version, and npm resolves
+ * through {@code node-semver}, which implements it.
  *
- * <p>Chapter 1 exists because OSERA had candidate schemes and the JVM side measured two of them:
- * {@code 2.14.1.1-osera-00001}, and {@code 2.14.1+osera.1}, which carries the producer in SemVer's
- * build metadata. The npm side evaluates one scheme, so the question a reader of the JVM chapters
- * will ask is what happened to the other one.
- *
- * <p>SemVer 2.0.0 §11 answers it: build metadata is excluded from precedence, so
- * {@code 1.4.1+osera.1} and {@code 1.4.1} are the same version as far as the spec is concerned.
- * Maven and Gradle do not implement SemVer and rank the two apart, which is why the scheme was
- * worth measuring there at all; npm resolves through {@code node-semver}, which does implement it.
- * These scenarios measure the consequence rather than restating the rule.
- *
- * <p>This registry is more permissive than npmjs, which is what makes the result usable. The mock
- * stores whatever string it is handed and will serve two versions that differ only in build
- * metadata; a public registry need not accept the publish at all. So a failure here is a floor, not
- * a ceiling: the scheme does not work even where the registry cooperates.
+ * <p>This registry will serve two versions differing only in build metadata, which npmjs need not,
+ * so a failure here is a floor rather than a ceiling.
  */
 public record NpmBuildMetadataTest(PackageVersioning versioning) {
 
@@ -31,10 +20,6 @@ public record NpmBuildMetadataTest(PackageVersioning versioning) {
     /** What the producer would publish under the scheme the JVM side measures. */
     private static final String PATCHED = "1.4.1+osera.1";
 
-    /**
-     * The scheme needs a backpatch to outrank the release it patches, because every tool in the
-     * matrix decides what to offer by comparing versions. §11 says it does not.
-     */
     @Test
     void semverRanksABackpatchAboveTheReleaseItPatches() {
         assertThat(SemverOrder.INSTANCE.compare(PATCHED, BASE))
@@ -42,11 +27,7 @@ public record NpmBuildMetadataTest(PackageVersioning versioning) {
           .isPositive();
     }
 
-    /**
-     * A consumer who has been told exactly which build they need, and asks for it by name. This is
-     * the least a scheme has to support: if naming the producer's version does not deliver it,
-     * nothing a remediator writes can help.
-     */
+    /** The least a scheme has to support: if naming the build does not deliver it, nothing can. */
     @Test
     void aConsumerWhoNamesTheProducersBuildExactly() {
         String logger = versioning.freshPackage();
@@ -58,10 +39,6 @@ public record NpmBuildMetadataTest(PackageVersioning versioning) {
           .isEqualTo(PATCHED);
     }
 
-    /**
-     * A consumer held on the line by a tilde, which is the population a backpatch exists for and
-     * the one the chosen scheme's recommendation is written for.
-     */
     @Test
     void aConsumerHeldOnTheLineByATilde() {
         String logger = versioning.freshPackage();

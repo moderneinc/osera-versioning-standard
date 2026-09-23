@@ -21,34 +21,19 @@ import static org.openrewrite.javascript.Assertions.packageLock;
 import static org.openrewrite.javascript.marker.NodeResolutionResult.PackageManager.Npm;
 
 /**
- * A backpatch for something the consumer never declared.
+ * A backpatch for something the consumer never declared, which is the common case and the one the
+ * direct scenarios cannot speak to.
  *
- * <p>This is the common case a backpatch exists for and the one the direct-dependency scenarios
- * cannot speak to: there is no declaration to rewrite, so a tool either reaches the resolution
- * graph or it does not. A column that declines is the measurement, not a gap.
- *
- * <p>Every cell here is red, and the OpenRewrite one is red for a reason that is not about this
- * scheme. The recipe writes the right override — {@link NpmOverrideTest} shows all three package
- * managers then install the backpatch from it — but its lock regeneration does not honour the
- * override, so the manifest and the lock disagree and {@code npm ci} refuses the result. The
- * closure resolver behind {@code NativeLockEngine} has no notion of overrides, recomputes the same
- * graph, and reports success. Reproduced against real npmjs with no fixtures, on an ordinary
- * version bump with no backpatch involved. Upstream defect; these cells stay red until it is
- * fixed rather than being worked around here.
+ * <p>OpenRewrite's cell is red for a reason that is not about this scheme: it writes the right
+ * override, {@link NpmOverrideTest} shows all three managers then install from it, but lock
+ * regeneration ignores the override and {@code npm ci} refuses the result. Reproduced upstream on
+ * an ordinary version bump.
  */
 public record NpmTransitiveTest(PackageVersioning versioning) implements NpmBuild {
 
     private static final String WRAPPER = "acme-wrapper";
 
-    /**
-     * Proves the recipe can change this fixture at all; see {@link NpmTest#control}.
-     *
-     * <p>It asserts the manifest only. Lock regeneration is asserted by the scenario below rather
-     * than here, because the lock not moving turned out to be the tool's behaviour and not a
-     * broken fixture: regeneration runs — it fails loudly with {@code RESOLUTION_REQUIRED} if the
-     * registry cannot describe the graph — and then leaves the lock pinning the old version,
-     * where the same engine does move it when a direct declaration changes.
-     */
+    /** Proves the recipe can change this fixture at all; see {@link NpmTest#control}. */
     @Test
     void control() {
         String logger = versioning.freshPackage();
@@ -62,10 +47,8 @@ public record NpmTransitiveTest(PackageVersioning versioning) implements NpmBuil
     }
 
     /**
-     * npm only. The fixture's lock is a {@code package-lock.json}, so pointing the marker at pnpm
-     * or Yarn Berry has the engine look for their formats and fail with {@code MALFORMED_LOCK} —
-     * a red cell about the fixture rather than about the tool. Measuring those two wants a
-     * {@code pnpm-lock.yaml} and a {@code yarn.lock} of their own, and is unmeasured until then.
+     * npm only: the fixture's lock is a {@code package-lock.json}, so naming another manager fails
+     * with {@code MALFORMED_LOCK}, which would be a cell about the fixture rather than the tool.
      */
     @EachNpmRemediator
     void transitiveDependency(NpmRemediator remediator) {
@@ -78,9 +61,7 @@ public record NpmTransitiveTest(PackageVersioning versioning) implements NpmBuil
         rewriteRun(
           NpmRemediator.asSpec(remediator, versioning, logger),
           packageJson(manifest(), withOverride(pm, logger, versioning.constraint(patched)), marker(logger, pm)),
-          // A consumer is only remediated once the lock pins the backpatch; a manifest that says
-          // one thing while the lock installs another is not a fix. Measured separately from the
-          // manifest because the two answers differ.
+          // A manifest that names the backpatch while the lock installs the old version is not a fix.
           packageLock(lock(logger, "1.4.1"), null, lockSpec -> lockSpec.after(regenerated -> {
               assertThat(regenerated)
                 .as("the lock %s left behind", remediator)

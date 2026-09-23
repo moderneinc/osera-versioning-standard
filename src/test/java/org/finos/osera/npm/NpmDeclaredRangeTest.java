@@ -10,14 +10,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
- * What a consumer gets with no remediation tool involved.
+ * What a consumer gets with no remediation tool involved. A backpatch exists because the maintainer
+ * has moved on, so the version being patched is never the newest thing on the registry.
  *
- * <p>The registry holds a realistic history. A backpatch exists because the maintainer has moved on,
- * so the version being patched is never the newest thing on the registry, and a scenario where it is
- * would flatter every range that reaches for the newest.
- *
- * <p>Every range asserts it resolves to the backpatch. Most do not, and that is the measurement:
- * the reds here are why {@code REL03-JAVASCRIPT} has to require a remediation tool.
+ * <p>Every range asserts it reaches the backpatch. Most do not, which is why
+ * {@code REL03-JAVASCRIPT} has to require a remediation tool.
  */
 public record NpmDeclaredRangeTest(PackageVersioning versioning) {
 
@@ -53,14 +50,9 @@ public record NpmDeclaredRangeTest(PackageVersioning versioning) {
     }
 
     /**
-     * Whether resolution really is shared across the package managers.
-     *
-     * <p>The table above runs against npm alone, on the grounds that all three use
-     * {@code node-semver}. That reasoning is why it is fifteen rows and not forty-five, so it is
-     * worth checking rather than asserting. Range <em>satisfaction</em> being shared does not make
-     * <em>selection among satisfying versions</em> shared: pnpm has a {@code resolution-mode}, and
-     * pnpm 8 shipped {@code lowest-direct} as the default for direct dependencies before
-     * reverting it. Under that, {@code ^1.4.1} stays on {@code 1.4.1}.
+     * The table above runs against npm alone because all three use {@code node-semver}, which is
+     * why it is fifteen rows and not forty-five. Worth checking: shared range satisfaction does not
+     * make selection shared, and pnpm's {@code resolution-mode} can prefer the lowest match.
      */
     @ParameterizedTest(name = "{0} on {1}")
     @CsvSource({

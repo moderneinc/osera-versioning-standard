@@ -20,27 +20,20 @@ import static org.openrewrite.javascript.marker.NodeResolutionResult.PackageMana
 
 /**
  * The ways a {@code package.json} arrives at a version, and whether each remediation tool can reach
- * them. This covers a direct dependency; the declaration shapes and the other package managers
- * follow.
+ * them.
  *
- * <p>The manifest's resolution marker is supplied rather than produced by installing the project,
- * which is what {@code Assertions}' package-manager-free factories are for. That keeps these
- * scenarios the same shape as the Maven and Gradle ones — text in, text out, no build tool in a
- * subprocess. What npm's own resolver does with these versions is measured in
- * {@link NpmDeclaredRangeTest} and {@link NpmWrittenConstraintTest}, where a real install is the
- * measurement rather than scaffolding.
+ * <p>The resolution marker is supplied rather than produced by an install, so these stay the same
+ * shape as the Maven and Gradle scenarios: text in, text out. What npm's own resolver does is
+ * {@link NpmDeclaredRangeTest}'s question.
  */
 public record NpmTest(PackageVersioning versioning) implements NpmBuild {
 
     private static final String PACKAGE = "acme-logger";
 
     /**
-     * Proves the recipe can change this fixture at all.
-     *
-     * <p>Without it, every "no change" result in this class is worthless: a {@code package.json}
-     * with no {@code NodeResolutionResult} marker makes the recipe return the tree untouched, and a
-     * marker with no package manager makes lock regeneration return null. Both are silent, and both
-     * would leave a cell looking like a tool that considered the backpatch and declined it.
+     * Without this, every "no change" result in this class is worthless: a missing marker makes the
+     * recipe return the tree untouched and a marker without a package manager makes lock
+     * regeneration return null, both silently.
      */
     @Test
     void control() {
@@ -65,16 +58,9 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
         versioning.publishUpstream(PACKAGE, "1.4.0", "1.4.1", "1.5.0", "2.0.0");
         String patched = versioning.publish(PACKAGE, "1.4.1");
 
-        // The manifest only. Two of these columns drive a file updater that rewrites declarations
-        // and never regenerates a lock, so scoring them on the lock would measure something this
-        // harness does not ask them to do. Lock regeneration is OpenRewrite's, and the control
-        // above is where it is measured.
-        // OpenRewrite's two npm dependency recipes are composed together, as the JVM column
-        // composes them in osera.yml, because a column cannot know in advance whether a consumer
-        // declares the vulnerable package or only has it underneath something they declare. On
-        // npm — unlike the JVM pair — the transitive recipe also writes an override for a
-        // dependency that is already direct and already correct, so the expected output carries
-        // that redundancy rather than hiding it by running the recipes separately.
+        // The manifest only: two columns never regenerate a lock, and the control measures that.
+        // OpenRewrite's transitive recipe also writes an override for a dependency that is already
+        // direct, so the expected output carries that redundancy rather than hiding it.
         String after = remediator.alsoPinsWithAnOverride()
           ? manifestWithRedundantOverride(pm, versioning.constraint(patched))
           : manifest(versioning.constraint(patched));
@@ -99,17 +85,9 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
     }
 
     /**
-     * Two backpatches exist; the tool should write the newer.
-     *
-     * <p>The npm equivalent of the JVM's {@code secondPatch}, and the only place anything acts on
-     * the zero-padding. {@code NextPatchPrereleaseTest} asserts {@code osera-00010} sorts above
-     * {@code osera-00009} as a string; this asserts a tool picks accordingly.
-     *
-     * <p>One package manager. Which of two backpatches a tool writes is a question about
-     * comparing versions, and no manager enters that comparison; the manager only decides how the
-     * override key beside the declaration is spelled, which {@link #directDependency} already
-     * measures. {@link #workspaceMember} keeps the axis because it writes that key into a second
-     * file.
+     * The npm equivalent of the JVM's {@code secondPatch}, and the only place a tool acts on the
+     * zero-padding. One package manager: which backpatch wins is a version comparison, and the
+     * manager only decides how the override key is spelled.
      */
     @EachNpmRemediator
     void secondBackpatch(NpmRemediator remediator) {
@@ -128,17 +106,13 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
             nodeResolutionResult(pm, dependency(PACKAGE, "~1.4.1"))));
     }
 
-    /**
-     * The backpatch is declared by a workspace member, not the root. The analogue of the JVM's
-     * multiModule scenario: the declaration a tool has to reach is not in the file it starts from.
-     */
+    /** The analogue of the JVM's multiModule: the declaration is not in the file a tool starts from. */
     @EachNpmRemediatorAndManager
     void workspaceMember(NpmRemediator remediator, PackageManager pm) {
         versioning.publishUpstream(PACKAGE, "1.4.0", "1.4.1", "1.5.0", "2.0.0");
         String patched = versioning.publish(PACKAGE, "1.4.1");
 
-        // OpenRewrite also pins the package from the root, which for a workspace is a reasonable
-        // place for it: the root is where a pin applies to every member at once.
+        // OpenRewrite also pins from the root, which for a workspace applies to every member.
         String rootAfter = remediator.alsoPinsWithAnOverride()
           ? workspaceRootWithOverride(pm, versioning.constraint(patched))
           : null;
@@ -149,9 +123,7 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
             nodeResolutionResult(pm, List.of("packages/member/package.json"))),
           dir("packages/member",
             packageJson(manifest("~1.4.1"),
-              // OpenRewrite pins it here as well as in the root, so the same package ends up
-              // constrained in three places: the member's declaration, the member's overrides and
-              // the root's. Recorded rather than hidden.
+              // Pinned here as well as in the root, so the package ends up constrained three times.
               remediator.alsoPinsWithAnOverride()
                 ? manifestWithRedundantOverride(pm, versioning.constraint(patched))
                 : manifest(versioning.constraint(patched)),

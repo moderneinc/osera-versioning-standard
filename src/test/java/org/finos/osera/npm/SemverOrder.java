@@ -4,13 +4,9 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * SemVer 2.0.0 §11 precedence, enough of it to order a packument.
- *
- * <p>Build metadata is discarded before anything is compared, which is §11's own rule and not a
- * simplification: "Build metadata MUST be ignored when determining version precedence", so
- * {@code 1.4.1+osera.1} and {@code 1.4.1} are the same version. That is the whole reason the
- * build-metadata scheme the JVM side measures cannot carry a producer on npm, and
- * {@link NpmBuildMetadataTest} is where the consequence is measured.
+ * SemVer 2.0.0 §11 precedence, enough of it to order a packument. Build metadata is discarded
+ * before anything is compared, which is §11's own rule; {@link NpmBuildMetadataTest} measures what
+ * that costs a producer.
  */
 public enum SemverOrder implements Comparator<String> {
     INSTANCE;
@@ -33,7 +29,7 @@ public enum SemverOrder implements Comparator<String> {
         return leftPre ? comparePrerelease(leftParts[1], rightParts[1]) : 0;
     }
 
-    /** Everything from the first {@code +} is metadata, and §11 says precedence cannot see it. */
+    /** §11: precedence cannot see build metadata. */
     private static String withoutBuildMetadata(String version) {
         int plus = version.indexOf('+');
         return plus < 0 ? version : version.substring(0, plus);

@@ -9,13 +9,9 @@ import org.openrewrite.javascript.UpgradeDependencyVersion;
 import org.openrewrite.javascript.UpgradeTransitiveDependencyVersion;
 
 /**
- * OpenRewrite's npm upgrade recipe, told the scheme's constraint.
- *
- * <p>Unlike the Maven and Gradle recipes, this one takes a literal constraint rather than a
- * {@code latest.patch} selector with a version pattern, and does no semver reasoning of its own: it
- * writes whatever it is given whenever the string differs. So this column measures whether the
- * recipe can reach a declaration, not whether it can choose a version. Choosing is
- * {@code NpmWrittenConstraintTest}'s question.
+ * OpenRewrite's npm upgrade recipe, told the scheme's constraint. Unlike the Maven and Gradle
+ * recipes it takes a literal constraint rather than a selector, so this column measures whether it
+ * can reach a declaration, not whether it can choose a version.
  */
 public final class OpenRewriteNpm implements NpmRemediator {
 

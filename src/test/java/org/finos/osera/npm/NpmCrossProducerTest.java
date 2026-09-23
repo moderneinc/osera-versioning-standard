@@ -13,13 +13,10 @@ import static org.openrewrite.javascript.Assertions.packageJson;
 import static org.openrewrite.javascript.marker.NodeResolutionResult.PackageManager.Npm;
 
 /**
- * More than one producer patching the same release, the npm counterpart of the JVM's
- * {@code CrossProducerTest} and of manual chapter 4.
- *
- * <p>Chapter 4 has two complaints about CARE. One is that a busier producer outranks a more
- * relevant one, because CARE's fourth segment counts releases in a slot the ordering treats as
- * shared. The other is that ties break on the producer's name. This scheme moves the sequence
- * after the producer token, so the first complaint should not apply and the second should.
+ * More than one producer patching the same release, the npm counterpart of {@code CrossProducerTest}.
+ * Chapter 4's two complaints about CARE are that a busier producer outranks a more relevant one and
+ * that ties break on the name. This scheme puts the sequence after the token, so only the second
+ * should apply.
  */
 public record NpmCrossProducerTest(PackageVersioning versioning) implements NpmBuild {
 
