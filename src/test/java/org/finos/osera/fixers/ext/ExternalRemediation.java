@@ -20,6 +20,8 @@ import org.openrewrite.toml.TomlParser;
 import org.openrewrite.toml.tree.Toml;
 import org.openrewrite.xml.XmlParser;
 import org.openrewrite.xml.tree.Xml;
+import org.openrewrite.yaml.YamlParser;
+import org.openrewrite.yaml.tree.Yaml;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -176,6 +178,7 @@ public final class ExternalRemediation extends ScanningRecipe<ExternalRemediatio
             case K.CompilationUnit ignored -> GradleParser.builder().build();
             case Properties.File ignored -> PropertiesParser.builder().build();
             case Toml.Document ignored -> TomlParser.builder().build();
+            case Yaml.Documents ignored -> YamlParser.builder().build();
             default -> throw new IllegalStateException("No parser for " + source.getClass().getSimpleName() +
                                                        "; add one when the TCK grows a source type");
         };

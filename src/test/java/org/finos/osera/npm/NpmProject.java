@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -52,10 +53,26 @@ public final class NpmProject {
      */
     public static String install(MockNpmRegistry registry, PackageManager pm,
                                  String name, String manifest) {
+        return install(registry, pm, name, manifest, Map.of());
+    }
+
+    /**
+     * As {@link #install(MockNpmRegistry, PackageManager, String, String)}, for a manifest that
+     * does not hold the version itself. A pnpm catalog keeps it in {@code pnpm-workspace.yaml},
+     * which has to be on disk beside the manifest or the manifest's {@code catalog:} resolves to
+     * nothing.
+     *
+     * @param alongside file name to contents, written into the project root
+     */
+    public static String install(MockNpmRegistry registry, PackageManager pm,
+                                 String name, String manifest, Map<String, String> alongside) {
         Path project = null;
         try {
             project = Files.createTempDirectory("osera-npm");
             Files.writeString(project.resolve("package.json"), manifest);
+            for (Map.Entry<String, String> file : alongside.entrySet()) {
+                Files.writeString(project.resolve(file.getKey()), file.getValue());
+            }
             // Its own cache, because a packument is cached per registry origin and these scenarios
             // change what a single origin serves between probes.
             Files.writeString(project.resolve(".npmrc"),

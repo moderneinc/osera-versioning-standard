@@ -42,6 +42,7 @@ dependencies {
     implementation("org.openrewrite:rewrite-javascript")
     implementation("org.openrewrite:rewrite-json")
     implementation("org.openrewrite:rewrite-properties")
+    implementation("org.openrewrite:rewrite-yaml")
     implementation("org.openrewrite.recipe:rewrite-java-dependencies:latest.integration")
 
     testImplementation(platform("org.junit:junit-bom:latest.release"))
