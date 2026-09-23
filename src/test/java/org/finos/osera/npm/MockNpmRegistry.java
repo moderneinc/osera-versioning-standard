@@ -154,14 +154,34 @@ public final class MockNpmRegistry {
         String documents = sorted(name).stream()
           .map(version -> "\"%s\": %s".formatted(version, versionDocument(name, version)))
           .collect(Collectors.joining(",\n"));
+        String times = sorted(name).stream()
+          .map(version -> "\"%s\": \"%s\"".formatted(version, PUBLISHED))
+          .collect(Collectors.joining(",\n"));
         return """
           {
             "name": "%s",
             "dist-tags": { "latest": "%s" },
+            "time": { %s },
             "versions": { %s }
           }
-          """.formatted(name, latest(name), documents);
+          """.formatted(name, latest(name), times, documents);
     }
+
+    /**
+     * When every version this registry serves was published.
+     *
+     * <p>Yarn 4.10 added {@code npmMinimalAgeGate}, which defaults to 1440 minutes: a version the
+     * registry does not date, or dates within the last day, is quarantined and cannot be installed
+     * at all. Every Yarn cell that runs a real install went red on the bump to 4.18 for that
+     * reason, including ones resolving to an ordinary upstream release, so it is not a fact about
+     * backpatches and must not be measured as one.
+     *
+     * <p>A date well behind the gate is the honest fixture: these scenarios ask which version a
+     * manager picks, and a real registry dates what it serves. What the gate does to a backpatch
+     * published in response to a CVE — which is new by definition — is a question of its own, and
+     * wants a scenario that sets the date deliberately rather than a harness that never sets one.
+     */
+    private static final String PUBLISHED = "2020-01-01T00:00:00.000Z";
 
     /**
      * npm never moves {@code latest} onto a prerelease while a release exists, and a backpatch must

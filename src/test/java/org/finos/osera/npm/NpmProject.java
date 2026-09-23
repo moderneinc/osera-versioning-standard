@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -70,9 +71,6 @@ public final class NpmProject {
         try {
             project = Files.createTempDirectory("osera-npm");
             Files.writeString(project.resolve("package.json"), manifest);
-            for (Map.Entry<String, String> file : alongside.entrySet()) {
-                Files.writeString(project.resolve(file.getKey()), file.getValue());
-            }
             // Its own cache, because a packument is cached per registry origin and these scenarios
             // change what a single origin serves between probes.
             Files.writeString(project.resolve(".npmrc"),
@@ -92,6 +90,13 @@ public final class NpmProject {
                   unsafeHttpWhitelist:
                     - 127.0.0.1
                   """.formatted(registry.url()));
+            }
+            // Appended rather than written, and written last, because a Yarn catalog lives in the
+            // .yarnrc.yml this method has just filled with registry settings. Replacing that file
+            // would take the registry with it; a YAML document takes another top-level key.
+            for (Map.Entry<String, String> file : alongside.entrySet()) {
+                Files.writeString(project.resolve(file.getKey()), file.getValue(),
+                  StandardOpenOption.CREATE, StandardOpenOption.APPEND);
             }
 
             Process install = new ProcessBuilder(installCommand(pm))
