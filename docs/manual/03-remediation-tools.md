@@ -194,12 +194,12 @@ JVM.
 ### How the version reaches the dependency
 
 | how the version reaches the dependency | OpenRewrite | Renovate (stock) | Renovate (configured) | Dependabot |
-|---|---|---|---|---|
-| literal constraint in `dependencies` | ✅ ¹ | ❌ | ✅ | ❌ |
-| a workspace member declares it | ✅ ¹ | ❌ | ✅ | ❌ |
-| two backpatches published, newest wins | ✅ | ❌ | ✅ | ❌ |
-| transitive, nothing declared to edit | ❌ | ❌ | ❌ | ❌ |
-| | **3 / 4** | **0 / 4** | **3 / 4** | **0 / 4** |
+|----------------------------------------|-------------|------------------|-----------------------|------------|
+| literal constraint in `dependencies`   | ✅ ¹         | ❌                | ✅                     | ❌          |
+| a workspace member declares it         | ✅ ¹         | ❌                | ✅                     | ❌          |
+| two backpatches published, newest wins | ✅           | ❌                | ✅                     | ❌          |
+| transitive, nothing declared to edit   | ❌           | ❌                | ❌                     | ❌          |
+|                                        | **3 / 4**   | **0 / 4**        | **3 / 4**             | **0 / 4**  |
 
 ¹ On npm and Yarn Berry. The same cell is red on pnpm, for a reason that has nothing to do with
 backpatches; "Why the red cells are red" below has it. The third row carries no footnote because it
@@ -219,13 +219,13 @@ manifest holding a bare `catalog:` reference. It is the same idea as a Gradle ve
 it is measured the same way, one row per spelling, because a tool that reads one spelling does not
 necessarily read the rest.
 
-| where the catalog lives | OpenRewrite | Renovate (stock) | Renovate (configured) | Dependabot |
-|---|---|---|---|---|
-| `pnpm-workspace.yaml`, default catalog | ❌ | ❌ | ✅ | ❌ |
-| `pnpm-workspace.yaml`, named catalog | ❌ | ❌ | ✅ | ❌ |
-| `.yarnrc.yml`, default catalog | ❌ | ❌ | ❌ | ❌ |
-| `.yarnrc.yml`, named catalog | ❌ | ❌ | ❌ | ❌ |
-| | **0 / 4** | **0 / 4** | **2 / 4** | **0 / 4** |
+| where the catalog lives                | OpenRewrite | Renovate (stock) | Renovate (configured) | Dependabot |
+|----------------------------------------|-------------|------------------|-----------------------|------------|
+| `pnpm-workspace.yaml`, default catalog | ❌           | ❌                | ✅                     | ❌          |
+| `pnpm-workspace.yaml`, named catalog   | ❌           | ❌                | ✅                     | ❌          |
+| `.yarnrc.yml`, default catalog         | ❌           | ❌                | ❌                     | ❌          |
+| `.yarnrc.yml`, named catalog           | ❌           | ❌                | ❌                     | ❌          |
+|                                        | **0 / 4**   | **0 / 4**        | **2 / 4**             | **0 / 4**  |
 
 This is the only table in the book where OpenRewrite is not the column that works and configured
 Renovate is. It is also the only place a spelling makes the difference: Renovate handles both pnpm
@@ -260,14 +260,14 @@ way, and each one honours it for a package the consumer never declared. Yarn Cla
 table here, where it is absent from the rest of the chapter, because it accepts three spellings of
 its key and does not treat them alike:
 
-| | key | installs the backpatch from it |
-|---|---|---|
-| npm | `overrides` | ✅ |
-| pnpm | `pnpm.overrides` | ✅ |
-| Yarn Berry | `resolutions` | ✅ |
-| Yarn Classic | `resolutions`, plain name | ✅ |
-| Yarn Classic | `resolutions`, `**/name` | ✅ |
-| Yarn Classic | `resolutions`, `name@range` | ❌ |
+|              | key                         | installs the backpatch from it |
+|--------------|-----------------------------|--------------------------------|
+| npm          | `overrides`                 | ✅                              |
+| pnpm         | `pnpm.overrides`            | ✅                              |
+| Yarn Berry   | `resolutions`               | ✅                              |
+| Yarn Classic | `resolutions`, plain name   | ✅                              |
+| Yarn Classic | `resolutions`, `**/name`    | ✅                              |
+| Yarn Classic | `resolutions`, `name@range` | ❌                              |
 
 The last row is a parsing bug old enough to have been reported before this suite existed: given
 `acme-logger@~1.4.1` Yarn Classic splits at the `@` and goes looking for `~1.4.1@~1.4.2-osera-00001`.

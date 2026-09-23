@@ -1,4 +1,6 @@
-package org.finos.osera.providers.npm;
+package org.finos.osera.npm;
+
+import org.finos.osera.providers.npm.NextPatchPrerelease;
 
 import org.junit.jupiter.api.Test;
 
