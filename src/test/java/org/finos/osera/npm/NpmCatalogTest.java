@@ -28,68 +28,97 @@ import static org.openrewrite.yaml.Assertions.yaml;
  * edit, the same way Renovate has nothing to edit in the JVM's imported-BOM and managed-parent
  * rows.
  *
- * <p>Two spellings, which is the whole of the surface: pnpm keeps the catalog in
- * {@code pnpm-workspace.yaml} and Yarn keeps it in {@code .yarnrc.yml}, under the same
- * {@code catalog} key. npm has no catalog at all. Unlike the package-manager axis on the rest of
- * the matrix, this one is real for every column: the catalog is a source file the external tools
- * are handed, not a marker only the recipe reads.
+ * <p>Four spellings, which is the whole surface: pnpm and Yarn each keep catalogs in a file of
+ * their own, and each offers a default catalog and any number of named ones. npm has none. Unlike
+ * the package-manager axis on the rest of the matrix this one is real for every column, because a
+ * catalog is a source file the external tools are handed rather than a marker only the recipe
+ * reads.
  */
 public record NpmCatalogTest(PackageVersioning versioning) implements NpmBuild {
 
-    /** Which file holds the catalog, and what it looks like holding one entry. */
-    private static String catalogFile(PackageManager pm) {
-        return switch (pm) {
-            case Pnpm -> "pnpm-workspace.yaml";
-            case YarnBerry -> ".yarnrc.yml";
-            default -> throw PackageManagers.notMeasured(pm);
-        };
-    }
+    /**
+     * Every way a catalog can hold a version. Each is a separate parse path in every tool, which is
+     * the argument chapter 3 makes for giving the Gradle catalog its own thirteen rows.
+     */
+    public enum Catalog {
+        PnpmDefault(PackageManager.Pnpm, "pnpm-workspace.yaml", "catalog:", """
+          packages:
+            - '.'
+          catalog:
+            %s: '%s'
+          """),
+        PnpmNamed(PackageManager.Pnpm, "pnpm-workspace.yaml", "catalog:stable", """
+          packages:
+            - '.'
+          catalogs:
+            stable:
+              %s: '%s'
+          """),
+        YarnDefault(PackageManager.YarnBerry, ".yarnrc.yml", "catalog:", """
+          catalog:
+            %s: '%s'
+          """),
+        YarnNamed(PackageManager.YarnBerry, ".yarnrc.yml", "catalog:stable", """
+          catalogs:
+            stable:
+              %s: '%s'
+          """);
 
-    private static String catalog(PackageManager pm, String logger, String constraint) {
-        return switch (pm) {
-            // packages is what makes this a workspace, which is the smallest project a pnpm
-            // catalog can exist in.
-            case Pnpm -> """
-              packages:
-                - '.'
-              catalog:
-                %s: '%s'
-              """.formatted(logger, constraint);
-            case YarnBerry -> """
-              catalog:
-                %s: '%s'
-              """.formatted(logger, constraint);
-            default -> throw PackageManagers.notMeasured(pm);
-        };
+        private final PackageManager pm;
+        private final String file;
+        private final String reference;
+        private final String template;
+
+        Catalog(PackageManager pm, String file, String reference, String template) {
+            this.pm = pm;
+            this.file = file;
+            this.reference = reference;
+            this.template = template;
+        }
+
+        /** What the manifest writes in place of a version. */
+        String reference() {
+            return reference;
+        }
+
+        String file() {
+            return file;
+        }
+
+        String holding(String logger, String constraint) {
+            return template.formatted(logger, constraint);
+        }
     }
 
     /**
      * The catalog is not a second resolution path.
      *
-     * <p>One row per manager rather than the fifteen {@link NpmDeclaredRangeTest} runs, for the
+     * <p>One row per spelling rather than the fifteen {@link NpmDeclaredRangeTest} runs, for the
      * same reason that class spot-checks the other package managers rather than repeating itself:
      * a catalog entry is a constraint like any other, and the question is only whether the manager
      * treats it as one. If it does, everything already measured about ranges applies unchanged.
      */
     @ParameterizedTest(name = "{0}")
-    @EnumSource(value = PackageManager.class, names = {"Pnpm", "YarnBerry"})
-    void aCatalogEntryResolvesLikeAnyOtherConstraint(PackageManager pm) {
-        assumeTrue(PackageManagers.isUsable(pm), pm + " is not installed at the measured major");
+    @EnumSource(Catalog.class)
+    void aCatalogEntryResolvesLikeAnyOtherConstraint(Catalog catalog) {
+        assumeTrue(PackageManagers.isUsable(catalog.pm),
+          catalog.pm + " is not installed at the measured major");
 
         String logger = versioning.freshPackage();
         versioning.publishUpstream(logger, "1.4.0", "1.4.1", "1.5.0", "2.0.0");
         String patched = versioning.publish(logger, "1.4.1");
 
-        assertThat(NpmProject.install(versioning.registry(), pm, logger, manifest(logger),
-          Map.of(catalogFile(pm), catalog(pm, logger, versioning.constraint(patched)))))
-          .as("what %s installs for a catalog entry holding %s", pm, versioning.constraint(patched))
+        assertThat(NpmProject.install(versioning.registry(), catalog.pm, logger,
+          manifest(logger, catalog),
+          Map.of(catalog.file(), catalog.holding(logger, versioning.constraint(patched)))))
+          .as("what %s installs for a %s entry holding %s",
+            catalog.pm, catalog, versioning.constraint(patched))
           .isEqualTo(patched);
     }
 
     static Stream<Arguments> eachColumnAndCatalog() {
         return NpmRemediator.all().flatMap(remediator ->
-          Stream.of(PackageManager.Pnpm, PackageManager.YarnBerry)
-            .map(pm -> Arguments.of(remediator, pm)));
+          Stream.of(Catalog.values()).map(catalog -> Arguments.of(remediator, catalog)));
     }
 
     /**
@@ -97,44 +126,44 @@ public record NpmCatalogTest(PackageVersioning versioning) implements NpmBuild {
      * fixes this build moves the version where it actually lives.
      *
      * <p>The OpenRewrite cells are red for a reason that is not about catalogs, and the chapter
-     * must not read them as one. Run directly against these sources, the recipe replaces the
-     * manifest's {@code "catalog:"} with the literal constraint and leaves the catalog file
-     * untouched: it takes the package out of the catalog rather than updating it, which fixes this
-     * one member and leaves every other member of a real workspace on the vulnerable version.
-     * Inside the matrix that behaviour is invisible on pnpm, because the column composes
-     * {@code UpgradeTransitiveDependencyVersion} and that recipe does not converge there — every
-     * {@code OpenRewrite — Pnpm} cell in the suite fails the same way, before any assertion about
-     * content is reached. Measured by running the two composed recipes separately:
+     * must not read them as one. The recipe replaces the manifest's catalog reference with the
+     * literal constraint and leaves the catalog file untouched: it takes the package out of the
+     * catalog rather than updating it, which fixes this one member and leaves every other member of
+     * a real workspace on the vulnerable version. That is visible in the Yarn cells and not in the
+     * pnpm ones, because the column composes {@code UpgradeTransitiveDependencyVersion} and that
+     * recipe does not converge on pnpm, so those cells fail before any assertion about content is
+     * reached. Measured by running the two composed recipes separately:
      * {@code UpgradeDependencyVersion} alone converges on pnpm, the transitive one alone does not.
      * Same recipe as {@link NpmTransitiveTest}'s stale lock, and the same upstream issue.
      */
     @ParameterizedTest(name = "{displayName} — {0} — {1}")
     @MethodSource("eachColumnAndCatalog")
-    void versionInACatalog(NpmRemediator remediator, PackageManager pm) {
+    void versionInACatalog(NpmRemediator remediator, Catalog catalog) {
         String logger = versioning.freshPackage();
         versioning.publishUpstream(logger, "1.4.0", "1.4.1", "1.5.0", "2.0.0");
         String patched = versioning.publish(logger, "1.4.1");
 
         rewriteRun(
           NpmRemediator.asSpec(remediator, versioning, logger),
-          // The manifest says `catalog:` before and after: there is no version in it to move, and
-          // a tool that wrote one here would be taking the package out of the catalog rather than
-          // updating it.
-          packageJson(manifest(logger), null,
-            nodeResolutionResult(pm, dependency(logger, "catalog:"))),
-          yaml(catalog(pm, logger, "~1.4.1"), catalog(pm, logger, versioning.constraint(patched)),
-            spec -> spec.path(catalogFile(pm))));
+          // The manifest keeps its catalog reference before and after: there is no version in it
+          // to move, and a tool that wrote one here would be taking the package out of the catalog
+          // rather than updating it.
+          packageJson(manifest(logger, catalog), null,
+            nodeResolutionResult(catalog.pm, dependency(logger, catalog.reference()))),
+          yaml(catalog.holding(logger, "~1.4.1"),
+            catalog.holding(logger, versioning.constraint(patched)),
+            spec -> spec.path(catalog.file())));
     }
 
-    private static String manifest(String logger) {
+    private static String manifest(String logger, Catalog catalog) {
         return """
           {
             "name": "consumer",
             "version": "1.0.0",
             "dependencies": {
-              "%s": "catalog:"
+              "%s": "%s"
             }
           }
-          """.formatted(logger);
+          """.formatted(logger, catalog.reference());
     }
 }
