@@ -1,5 +1,6 @@
 package org.finos.osera.npm;
 
+import org.finos.osera.fixers.npm.EachNpmRemediator;
 import org.finos.osera.fixers.npm.EachNpmRemediatorAndManager;
 import org.finos.osera.fixers.npm.NpmRemediator;
 import org.finos.osera.providers.npm.PackageVersioning;
@@ -103,9 +104,16 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
      * <p>The npm equivalent of the JVM's {@code secondPatch}, and the only place anything acts on
      * the zero-padding. {@code NextPatchPrereleaseTest} asserts {@code osera-00010} sorts above
      * {@code osera-00009} as a string; this asserts a tool picks accordingly.
+     *
+     * <p>One package manager. Which of two backpatches a tool writes is a question about
+     * comparing versions, and no manager enters that comparison; the manager only decides how the
+     * override key beside the declaration is spelled, which {@link #directDependency} already
+     * measures. {@link #workspaceMember} keeps the axis because it writes that key into a second
+     * file.
      */
-    @EachNpmRemediatorAndManager
-    void secondBackpatch(NpmRemediator remediator, PackageManager pm) {
+    @EachNpmRemediator
+    void secondBackpatch(NpmRemediator remediator) {
+        PackageManager pm = Npm;
         versioning.publishUpstream(PACKAGE, "1.4.0", "1.4.1", "1.5.0", "2.0.0");
         versioning.publish(PACKAGE, "1.4.1", PackageVersioning.OSERA, 1);
         String newest = versioning.publish(PACKAGE, "1.4.1", PackageVersioning.OSERA, 2);
