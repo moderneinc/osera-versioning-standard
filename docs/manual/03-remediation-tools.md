@@ -185,8 +185,8 @@ installs Renovate and configures nothing therefore gets a different answer from 
 told what to set, and the difference is itself something the standard has to tell people. The stock
 column passes exactly what `getOptions()` reports as shipped, so that it measures a consumer who
 changed nothing rather than one this suite half-configured. The configured column sets
-`allowedVersions` to the producer's line and `ignoreUnstable: false`, and those two are the whole
-of what is required.
+`allowedVersions` to the producer's line and `ignoreUnstable: false`, and those two are the whole of
+what is required: with everything else left at its shipped value the column's cells are unchanged.
 
 Dependabot gets neither. On the JVM it is given a version ceiling, because it has no way to say
 "only versions matching the producer's pattern" and a ceiling is the nearest thing. Here it is given
@@ -294,11 +294,11 @@ neither, so the backpatch is filtered before anything compares versions. Dependa
 line once a remediator has put a consumer on it, and even then only with `ignored_versions` holding
 it below the next minor. It cannot start.
 
-**Renovate, unconfigured**, is red everywhere too, and not because it does nothing. It proposes
-`~2.0.0`, in every scenario. So does Dependabot. Both bots offer a consumer pinned to `1.4.x` a
-migration to the next major and call it an update, which is worse than missing the backpatch,
-because it looks like an answer and a consumer who takes it has changed their major version to fix
-a patch-level vulnerability.
+**Renovate, unconfigured**, is red everywhere too, and not because it does nothing. It offers two
+updates and opens a pull request for each: a minor to `~1.5.0` and a major to `~2.0.0`. Dependabot
+offers the major. So a consumer held on `1.4.x` is handed a choice between leaving the line and
+leaving the major version, and neither reaches the backpatch. That is worse than missing it,
+because it looks like an answer, and the one most likely to be taken is the minor.
 
 **OpenRewrite**'s reds are two defects in `UpgradeTransitiveDependencyVersion`, and both reproduce
 on an ordinary version bump with no backpatch involved. `NativeLockEngine` defers an override edit

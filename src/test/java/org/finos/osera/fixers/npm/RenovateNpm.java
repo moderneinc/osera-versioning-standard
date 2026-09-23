@@ -62,6 +62,7 @@ public sealed interface RenovateNpm extends NpmRemediator permits RenovateNpm.St
         public Map<String, Object> lookup() {
             return Map.of(
               "rangeStrategy", "auto",
+              "separateMajorMinor", true,
               "separateMinorPatch", false,
               "updatePinnedDependencies", true,
               "ignoreUnstable", true,
@@ -84,13 +85,15 @@ public sealed interface RenovateNpm extends NpmRemediator permits RenovateNpm.St
     final class Configured implements RenovateNpm {
         @Override
         public Map<String, Object> lookup() {
-            // The defaults, with the two that hide a prerelease backpatch turned off.
+            // The shipped defaults with one change, ignoreUnstable, plus the allowedVersions
+            // below. Measured: rangeStrategy replace and respectLatest false moved no cell.
             return Map.of(
-              "rangeStrategy", "replace",
+              "rangeStrategy", "auto",
+              "separateMajorMinor", true,
               "separateMinorPatch", false,
               "updatePinnedDependencies", true,
               "ignoreUnstable", false,
-              "respectLatest", false);
+              "respectLatest", true);
         }
 
         @Override
