@@ -93,3 +93,58 @@ repositories they resolve against. A build wired to one producer's repository ne
 question. A build wired to several has already accepted whatever those several publish. Allocating
 tokens is worth writing into the standard so that two producers never collide on a coordinate, but
 no producer reaches a consumer who has not wired them up.
+
+## npm
+
+The npm scheme takes the count out of the comparison by construction rather than by freezing a
+segment, because there is no segment to freeze: `1.4.2-osera-00001` and `1.4.2-zenith-00001` are
+prereleases of the same version, and the sequence sits after the producer token in the identifier
+rather than before it. So this chapter's first complaint does not arise.
+
+| | JVM, under CARE's numbering | npm |
+|---|---|---|
+| a busier producer outranks a more relevant one | yes | **no**, measured |
+| ties break on the producer's name | yes | yes |
+
+The first row was measured the same way as its JVM counterpart: five OSERA backpatches against one
+of Zenith's, with nobody naming a producer. The count never enters the comparison, because
+node-semver compares the prerelease identifiers left to right and `osera` against `zenith` is
+settled before any sequence number is reached. Publishing more often buys a producer nothing.
+
+Which is the second row, and it is the same answer as the JVM's for the same reason. `zenith` sorts
+after `osera` as a string, so with both published and nobody naming either, a consumer lands on
+Zenith's.
+
+Naming the producer works here as it does there. Told the producer's line through OpenRewrite's
+constraint or Renovate's `allowedVersions`, both land on the OSERA backpatch; the unconfigured bots
+do not, but they were not going to offer a prerelease at all.
+
+## The constraint cannot name a producer, only a version
+
+There is one thing here that has no JVM counterpart, and it is the sharpest cost this book
+measures, because it lands on the exact constraint chapter 2 recommends.
+
+`~1.4.2-osera-00001` names our producer. It does not keep a consumer on our producer. A tilde
+admits the whole prerelease tuple, so it admits everything published at `1.4.2-*`, and a rival's
+`1.4.2-zenith-00001` sorts above ours:
+
+| a consumer whose manifest says | installs |
+|---|---|
+| `~1.4.2-osera-00001` | `1.4.2-zenith-00001` |
+
+The constraint that delivers the backpatch, picks up our own later backpatches, and hands the
+consumer back to the maintainer when the maintainer ships, also hands them to whoever else patches
+the same release with a token later in the alphabet. There is no npm constraint that does the first
+three and not the fourth. An exact pin avoids it and gives up the other three, including the
+handover to the maintainer's real fix.
+
+The mitigation is the one the JVM section arrives at, and it is stronger on npm rather than weaker:
+ordering only decides between versions a consumer can see, and on npm a consumer sees exactly one
+registry. There is no overlay and no per-package routing, so a consumer either resolves against a
+registry carrying both producers or they do not. An enterprise proxy carrying one producer's
+backpatches never has this problem.
+
+But that mitigation is a deployment fact, not a property of the version, and the recommendation in
+chapter 2 is a version. **A standard that tells people to write `~1.4.2-osera-00001` is telling
+them to write something that names a producer it cannot hold them to**, and it should say so in the
+same breath rather than leave it to be discovered.

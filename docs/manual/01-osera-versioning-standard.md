@@ -69,12 +69,76 @@ own security releases, and Central holds `2.12.6.1`, `2.12.7.1`, `2.12.7.2`, `2.
 jackson-databind for an unrelated scenario and Dependabot walked straight onto the maintainer's
 release; chapter 3 has that run.
 
+## The same problem on npm
+
+Everything above turns on one fact, which the previous paragraph states in passing: no JVM build
+tool implements SemVer. npm does. It resolves through `node-semver`, which implements §11 exactly,
+and every tool in chapter 3 reaches npm through it. So the format this chapter describes cannot be
+carried across, and JavaScript needs a scheme of its own.
+
+OSERA's is a plain SemVer 2 prerelease of the maintainer's *next* patch version, with no scope:
+
+```
+1.4.1                the version being patched
+1.4.2-osera-00001    the first backpatch
+1.4.2-osera-00002    a second, for another CVE against the same release
+1.4.2                the maintainer's own patch, which supersedes both
+```
+
+It works by patching forward rather than sideways. A prerelease sorts below the release it hangs
+off, which is the rule that makes a hyphen dangerous on the JVM's numbering; hanging the backpatch
+off `1.4.2` rather than `1.4.1` turns that rule into the answer we want, because it then sorts
+above the release being patched and below the maintainer's eventual fix. The sequence is
+zero-padded for the same reason as on the JVM: prerelease identifiers that are not purely numeric
+compare as strings, so `osera-10` would sort below `osera-9`.
+
+Two things follow from it that have no equivalent in the JVM chapters, and both are measured rather
+than argued. A remediator is not optional on npm, because no plain range reaches the backpatch at
+all: chapter 2. And the constraint the remediator writes has to be a tilde rather than a caret,
+which costs something: also chapter 2.
+
+### The alternative we measured
+
+SemVer has a second place to put a producer's name, and the JVM side measures it as a scheme of its
+own: build metadata, `2.14.1+osera.1`. It does not work on npm, and §11 is explicit about why.
+Build metadata is excluded from precedence, so `1.4.1+osera.1` and `1.4.1` are the same version.
+
+The cell that settles it is not a range missing the backpatch. It is a consumer who has been told
+exactly which build they need:
+
+| the consumer asks for | npm installs |
+|---|---|
+| `1.4.1+osera.1`, exactly | `1.4.1` |
+| `~1.4.1` | `1.4.1` |
+
+npm accepts the request, hands back the maintainer's release without the fix, and reports success.
+The producer's artifact is unreachable even when it is named, so there is no constraint a
+remediator could write that would help and nothing further to measure. Our mock registry is more
+permissive than npmjs here, in that it will serve two versions differing only in build metadata at
+all, so this is a floor and not a ceiling.
+
+### The alternative we did not measure
+
+A producer could republish under a scope they control, as `@osera/acme-logger`. That does reach a
+consumer, and it is not a versioning scheme: it changes the package's identity, so every
+declaration, every lockfile entry and every transitive reference to the original name has to be
+redirected to it. The working group ruled it out on those grounds rather than on anything measured
+here, and recording the ruling is all this chapter does with it. Yarn's `npm:` aliasing is the same
+proposal with a redirect in front, and falls with it.
+
 ## What we measured
 
 Everything in the next three chapters came out of `./gradlew tck` in this repository, which drives
-the real implementations (Maven's resolver, a real Gradle 9.7.1 build through the tooling API,
+the real implementations rather than reading their documentation.
+
+On the JVM that is Maven's resolver, a real Gradle 9.7.1 build through the tooling API,
 OpenRewrite's `UpgradeDependencyVersion` and `UpgradeTransitiveDependencyVersion`, Renovate
-41.173.1 in its own Node process, and Dependabot 0.394.0 in its own Ruby process) against a mock
+41.173.1 in its own Node process, and Dependabot 0.394.0 in its own Ruby process, against a mock
 Maven 2 repository serving HTTPS on a port the test picks, alongside real Maven Central.
+
+On npm it is npm 11.4, pnpm 9.15, Yarn Berry 4.18 through corepack and Yarn Classic 1.22, the same
+three remediation tools, and a mock npm registry that holds a producer's versions and proxies
+everything else to npmjs. Where a question is about which version a manager picks, the answer comes
+from a real install into a throwaway project and is read back out of `node_modules`.
 
 [care]: https://central.sonatype.org/policies/care-policy/#10-care-versioning

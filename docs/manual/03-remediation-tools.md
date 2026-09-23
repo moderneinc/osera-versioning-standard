@@ -170,3 +170,161 @@ a project that reserves the fourth segment for exactly this kind of release. The
 works out (Maven ranks `2.12.6.1-osera-00001` above `2.12.6.1` and Gradle ranks it below), but a
 producer patching Jackson is publishing into numbering its maintainer is actively using, and we
 think the standard should say which of the two wins when both exist.
+
+## npm
+
+Chapter 2 ended by saying a remediator is mandatory here, which makes this section load-bearing in
+a way the JVM tables are not. On the JVM a consumer with a dynamic version gets the backpatch
+whether or not any of these tools ever runs. On npm nobody gets it unless one of them rewrites a
+declaration.
+
+Renovate appears twice. On the JVM it reads `osera` as a stable qualifier and would consider the
+backpatch unprompted, so one column is enough; on npm the backpatch is a prerelease and Renovate
+ships `ignoreUnstable: true`, which excludes it before any comparison happens. A consumer who
+installs Renovate and configures nothing therefore gets a different answer from one who has been
+told what to set, and the difference is itself something the standard has to tell people. The stock
+column passes exactly what `getOptions()` reports as shipped, so that it measures a consumer who
+changed nothing rather than one this suite half-configured. The configured column sets
+`allowedVersions` to the producer's line and `ignoreUnstable: false`, and those two are the whole
+of what is required.
+
+Dependabot gets a version ceiling rather than a producer pattern, for the same reason as on the
+JVM.
+
+### How the version reaches the dependency
+
+| how the version reaches the dependency | OpenRewrite | Renovate (stock) | Renovate (configured) | Dependabot |
+|---|---|---|---|---|
+| literal constraint in `dependencies` | ✅ ¹ | ❌ | ✅ | ❌ |
+| a workspace member declares it | ✅ ¹ | ❌ | ✅ | ❌ |
+| two backpatches published, newest wins | ✅ | ❌ | ✅ | ❌ |
+| transitive, nothing declared to edit | ❌ | ❌ | ❌ | ❌ |
+| | **3 / 4** | **0 / 4** | **3 / 4** | **0 / 4** |
+
+¹ On npm and Yarn Berry. The same cell is red on pnpm, for a reason that has nothing to do with
+backpatches; "Why the red cells are red" below has it. The third row carries no footnote because it
+is asked of npm alone: which of two backpatches a tool picks is a comparison between versions, and
+no package manager takes part in it.
+
+Four rows where the JVM has thirty-three, and the gap is the ecosystem rather than the effort. Ten
+of Maven's and Gradle's rows are version properties, parent poms, `dependencyManagement`, imported
+BOMs, plugin dependencies and two DSLs, and a `package.json` has an analogue for none of them: it
+is JSON, so there is no variable to interpolate and one way to write a dependency. What npm does
+have is a catalog, and that gets its own table below, exactly as Gradle's does.
+
+### Catalogs
+
+pnpm and Yarn both let a version live outside the manifest, in a file of their own, with the
+manifest holding a bare `catalog:` reference. It is the same idea as a Gradle version catalog and
+it is measured the same way, one row per spelling, because a tool that reads one spelling does not
+necessarily read the rest.
+
+| where the catalog lives | OpenRewrite | Renovate (stock) | Renovate (configured) | Dependabot |
+|---|---|---|---|---|
+| `pnpm-workspace.yaml`, default catalog | ❌ | ❌ | ✅ | ❌ |
+| `pnpm-workspace.yaml`, named catalog | ❌ | ❌ | ✅ | ❌ |
+| `.yarnrc.yml`, default catalog | ❌ | ❌ | ❌ | ❌ |
+| `.yarnrc.yml`, named catalog | ❌ | ❌ | ❌ | ❌ |
+| | **0 / 4** | **0 / 4** | **2 / 4** | **0 / 4** |
+
+This is the only table in the book where OpenRewrite is not the column that works and configured
+Renovate is. It is also the only place a spelling makes the difference: Renovate handles both pnpm
+catalogs and neither Yarn one.
+
+OpenRewrite's cell is not a refusal, which makes it the more interesting red in the table. There is
+no occurrence of `catalog` anywhere in `rewrite-javascript`, so the recipe does not know the
+feature exists. What it does instead is treat the string `catalog:` as a version literal and
+overwrite it:
+
+```diff
+   "dependencies": {
+-    "acme-logger": "catalog:"
++    "acme-logger": "~1.4.2-osera-00001"
+   }
+```
+
+The catalog file is left alone. The build still resolves, and in a one-member workspace it even
+installs the right version, which is what makes it worse than doing nothing: the package has been
+quietly taken out of the catalog. In a real workspace that fixes one member, leaves the others on
+the vulnerable version, and removes the single declaration that was keeping them in step. It is the
+same class of failure as Renovate's shared `version.ref` earlier in this chapter, where a tool
+finds a literal, edits it confidently, and edits the wrong thing.
+
+### The override works, the automation does not
+
+A transitive dependency is the case a backpatch most often exists for, and it is the one row where
+every column is red.
+
+The mechanism itself is sound. Each manager spells "pin this package wherever it appears" its own
+way, and each one honours it for a package the consumer never declared. Yarn Classic 1.22 joins the
+table here, where it is absent from the rest of the chapter, because it accepts three spellings of
+its key and does not treat them alike:
+
+| | key | installs the backpatch from it |
+|---|---|---|
+| npm | `overrides` | ✅ |
+| pnpm | `pnpm.overrides` | ✅ |
+| Yarn Berry | `resolutions` | ✅ |
+| Yarn Classic | `resolutions`, plain name | ✅ |
+| Yarn Classic | `resolutions`, `**/name` | ✅ |
+| Yarn Classic | `resolutions`, `name@range` | ❌ |
+
+The last row is a parsing bug old enough to have been reported before this suite existed: given
+`acme-logger@~1.4.1` Yarn Classic splits at the `@` and goes looking for `~1.4.1@~1.4.2-osera-00001`.
+Any advice that mentions `resolutions` has to say which of the three forms to write.
+
+So the override reaches the consumer. What no tool does is produce one.
+
+Renovate does not act at all, in either column, and it is right not to: its transitive path is
+`vulnerabilityAlerts` with `rangeStrategy: update-lockfile`, driven by an alert feed rather than by
+the lookup this suite calls. Dependabot sees the subdependency and cannot move it, asked through
+both of its unlock strategies. OpenRewrite writes the correct override key for the manager, and
+then leaves the lockfile pinning the vulnerable version, so the manifest and the lock disagree and
+`npm ci` refuses the result with `EUSAGE`. A commit that does not build is not a remediation.
+
+### Why the red cells are red
+
+**Dependabot** is red everywhere, as on the JVM, and it is worth saying plainly that the reason is
+different. The JVM columns die in `Shared::SharedVersionFinder#suffix_compatible?`. The npm column
+dies in `filter_prerelease_versions`, which drops a prerelease unless the current version or a
+declared requirement is already a prerelease at the same tuple. A consumer sitting on `~1.4.1` is
+neither, so the backpatch is filtered before anything compares versions. Dependabot can sustain a
+line once a remediator has put a consumer on it, and even then only with `ignored_versions` holding
+it below the next minor. It cannot start.
+
+**Renovate, unconfigured**, is red everywhere too, and not because it does nothing. It proposes
+`~2.0.0`, in every scenario. So does Dependabot. Both bots offer a consumer pinned to `1.4.x` a
+migration to the next major and call it an update, which is worse than missing the backpatch,
+because it looks like an answer and a consumer who takes it has changed their major version to fix
+a patch-level vulnerability.
+
+**OpenRewrite**'s reds come from two defects, and neither is about OSERA. Both reproduce on an
+ordinary version bump with no backpatch involved, and both are in the same recipe,
+`UpgradeTransitiveDependencyVersion`.
+
+The first is the stale lock above. `NativeLockEngine` defers an override edit with
+`RESOLUTION_REQUIRED`, that reason is in `RESOLVABLE_REASONS`, and the whole-closure resolver it
+falls back to has no notion of overrides, so it recomputes the same graph and reports success.
+Reproduced against real npmjs on an `is-number` 6 to 7 bump with no fixtures involved.
+
+The second is why every `OpenRewrite` cell above carries a footnote about pnpm. On pnpm the recipe
+never stabilises: it keeps changing the manifest on every cycle, so the cell fails before any
+assertion about content is reached. Running the two composed recipes separately shows which one it
+is. `UpgradeDependencyVersion` alone converges on pnpm; the transitive one alone does not.
+
+That second defect is also why the catalog table's pnpm cells cannot show what the recipe did,
+while the Yarn cells can. The diff printed in the catalog section came from running the recipe
+outside the suite, because inside it the pnpm cells die first.
+
+Neither is a result about the version format, and both are fixable in a tool this working group's
+members maintain. That is a different kind of red from Dependabot's, which is a design decision
+about prereleases, and the chapter would be misread if the two were counted together.
+
+### What we have not measured
+
+Bun, which is a fourth package manager this suite does not run. Yarn's `workspace:`, `patch:` and
+`portal:` protocols, which cannot carry a third-party backpatch, and `npm:` aliasing, which is the
+scoped-republication proposal chapter 1 records as ruled out. Transitive remediation on pnpm and
+Yarn Berry, which needs a lockfile fixture in each of their formats: the override half of that
+question is measured on all three managers above, and the half that is missing would be red for the
+upstream defect already described.
