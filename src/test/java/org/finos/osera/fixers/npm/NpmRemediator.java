@@ -12,42 +12,20 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
-/**
- * A way a consumer's {@code package.json} might be moved onto a backpatch.
- *
- * <p>Renovate appears twice on purpose. Its shipped defaults and a configuration that names the
- * producer's line give different answers, and merging them would hide the thing the standard has to
- * mandate.
- */
+/** A way a consumer's {@code package.json} might be moved onto a backpatch. */
 public sealed interface NpmRemediator permits OpenRewriteNpm, RenovateNpm, DependabotNpm {
 
-    /**
-     * @param packageName The dependency the scenario is about. One registry serves the whole run,
-     *                    so its key set is every other scenario's fixture as well; a column that
-     *                    worked from that would re-parse the project once per package it has never
-     *                    heard of.
-     */
+    /** @param packageName The dependency the scenario is about; the registry holds every other one too. */
     Recipe asRecipe(PackageVersioning versioning, String packageName);
 
-    /**
-     * Whether this column pins the package with an override as well as moving the declaration.
-     *
-     * <p>A property of the column, not of the scenario: {@link OpenRewriteNpm} composes the
-     * transitive recipe alongside the direct one so that it need not be told which shape it is
-     * facing, and on npm — unlike the JVM pair — the transitive recipe also writes an override for
-     * a dependency that is already direct and already correct.
-     */
+    /** Whether this column pins with an override as well as moving the declaration. */
     default boolean alsoPinsWithAnOverride() {
         return false;
     }
 
     /**
-     * Whether the package manager reaches this column at all.
-     *
-     * <p>Only the recipe column sees one. The external columns are handed printed source text by
-     * {@link ExternalRemediation}, and markers are not printed, so the bytes they receive are
-     * identical whichever manager the fixture names. Running them three times measures nothing and
-     * costs three subprocesses.
+     * Only the recipe column sees one: {@link ExternalRemediation} hands the others printed source,
+     * and markers are not printed, so the bytes are identical whichever manager a fixture names.
      */
     default boolean readsPackageManager() {
         return false;
@@ -69,18 +47,7 @@ public sealed interface NpmRemediator permits OpenRewriteNpm, RenovateNpm, Depen
         };
     }
 
-    /**
-     * Every column, for use as a {@code @MethodSource}.
-     *
-     * <p>Written out rather than walked from the permits clause, because Renovate's two columns are
-     * leaves of a nested sealed interface and the reflective walk only goes one level. A new column
-     * has to be added here by hand.
-     */
-    /**
-     * Every column against every package manager measured. Resolution is shared between them, but
-     * the lockfile writers are not: Dependabot ships four for this one ecosystem and OpenRewrite
-     * regenerates through a different one per manager.
-     */
+    /** Every column against every package manager it can tell apart. */
     static Stream<Arguments> allAcrossManagers() {
         return all().flatMap(remediator -> (remediator.readsPackageManager()
           ? Stream.of(PackageManager.Npm, PackageManager.Pnpm, PackageManager.YarnBerry)
@@ -88,6 +55,7 @@ public sealed interface NpmRemediator permits OpenRewriteNpm, RenovateNpm, Depen
           .map(pm -> Arguments.of(remediator, pm)));
     }
 
+    /** Written out rather than walked from the permits clause: Renovate's two are nested one level down. */
     static Stream<NpmRemediator> all() {
         return Stream.of(
           new OpenRewriteNpm(),

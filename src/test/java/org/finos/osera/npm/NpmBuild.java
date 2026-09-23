@@ -10,12 +10,7 @@ import org.openrewrite.test.RewriteTest;
 
 import java.util.List;
 
-/**
- * Points OpenRewrite's npm resolution at the scheme's registry, the counterpart of what
- * {@code MavenBuild} does with Maven settings. Lock regeneration runs in the JVM rather than by
- * shelling out, so it reads these registries; the package manager itself reads the npmrc the build
- * points it at.
- */
+/** Points OpenRewrite's npm resolution at the scheme's registry, as {@code MavenBuild} does with settings. */
 public interface NpmBuild extends RewriteTest {
 
     PackageVersioning versioning();
@@ -26,8 +21,7 @@ public interface NpmBuild extends RewriteTest {
     }
 
     default ExecutionContext npmContext() {
-        // The default handler swallows what a recipe throws, so a remediation tool that crashes
-        // would be recorded as one that declined to act. Those are opposite measurements.
+        // The default handler swallows what a recipe throws, so a crash would read as a refusal.
         ExecutionContext ctx = new InMemoryExecutionContext(t -> {
             throw t instanceof RuntimeException runtime ? runtime : new IllegalStateException(t);
         });
@@ -36,8 +30,7 @@ public interface NpmBuild extends RewriteTest {
           null, null, null, null,
           false,
           null,
-          // strictSsl false sends the engine down the custom-CA path even for a plain http URL,
-          // where it fails with REGISTRY_UNREACHABLE and no CA is involved at all.
+          // strictSsl false takes the custom-CA path even for http, and fails there.
           true,
           false)));
         return ctx;

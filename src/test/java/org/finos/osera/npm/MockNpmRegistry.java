@@ -29,13 +29,9 @@ import java.util.stream.Collectors;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
- * An npm registry that holds a producer's versions and proxies everything else to npmjs.
- *
- * <p>npm has no overlay: per-package {@code .npmrc} routing is ignored and this scheme has no scope
- * to route on, so a consumer points at exactly one registry. That makes an enterprise proxy the only
- * realistic topology, and it is the one modelled here. It is also a practical necessity: repointing
- * npm at a registry that does not carry {@code @openrewrite/rewrite} stops the recipe's own Node
- * process from starting.
+ * An npm registry that holds a producer's versions and proxies everything else to npmjs. npm has
+ * no overlay and this scheme has no scope to route on, so a consumer points at exactly one
+ * registry, which makes an enterprise proxy the only realistic topology.
  */
 public final class MockNpmRegistry {
 
@@ -43,9 +39,7 @@ public final class MockNpmRegistry {
 
     private final Map<String, Set<String>> versions = new ConcurrentHashMap<>();
     private final Map<String, String> published = new ConcurrentHashMap<>();
-    // What each version depends on. A registry that cannot say so cannot serve a scenario where
-    // the backpatch arrives underneath something else: the lock engine re-resolves, finds the
-    // package orphaned, and refuses with RESOLUTION_REQUIRED.
+    // What each version depends on, without which no transitive scenario resolves.
     private final Map<String, Map<String, String>> dependencies = new ConcurrentHashMap<>();
     // A packument names every version, and building one rebuilt every tarball and hashed it twice.
     private final Map<String, byte[]> tarballs = new ConcurrentHashMap<>();
@@ -69,12 +63,8 @@ public final class MockNpmRegistry {
     }
 
     /**
-     * The registry base URL, ending in a slash.
-     *
-     * <p>Addressed by literal IPv4 rather than by name. {@code localhost} resolves to {@code ::1}
-     * first on this platform while the server listens on IPv4, and a client that prefers the IPv6
-     * answer does not fail fast: Dependabot reports it as {@code PrivateSourceTimedOut}, which
-     * reads like an unreachable registry rather than a name that resolved the wrong way.
+     * The registry base URL. Literal IPv4, because {@code localhost} resolves to {@code ::1} first
+     * here while the server listens on IPv4, and Dependabot reports that as a timed-out registry.
      */
     public String url() {
         return server.url("/").toString().replace("://localhost:", "://127.0.0.1:");
@@ -94,9 +84,7 @@ public final class MockNpmRegistry {
     /** As {@link #publish(String, String)}, for a version that depends on something. */
     public void publish(String name, String version, Map<String, String> dependsOn) {
         versions.computeIfAbsent(name, n -> ConcurrentHashMap.newKeySet()).add(version);
-        // Republishing a version with a different graph has to invalidate the artifact built from
-        // the old one, or the packument advertises one set of dependencies and the tarball carries
-        // another. Scenarios do republish: each gives acme-wrapper a different logger underneath.
+        // Republishing with a different graph invalidates the tarball built from the old one.
         dependencies.put(name + "@" + version, dependsOn);
         tarballs.remove(name + "@" + version);
     }
@@ -106,12 +94,8 @@ public final class MockNpmRegistry {
     }
 
     /**
-     * Points the npm processes that measure real resolution at this registry, by writing the file
-     * named by {@code npm_config_userconfig}.
-     *
-     * <p>Each of those writes its own project {@code .npmrc} naming this registry too, so this
-     * file's job is only to neutralise whatever the developer has in {@code ~/.npmrc}. It is a
-     * single shared path, so only the registry a run measures against may write it.
+     * Writes the file named by {@code npm_config_userconfig}, whose job is to neutralise whatever
+     * the developer has in {@code ~/.npmrc}. A shared path, so only one registry may write it.
      */
     public void asDefaultRegistry() {
         String configured = System.getProperty("osera.npmrc");
@@ -179,19 +163,12 @@ public final class MockNpmRegistry {
           """.formatted(name, latest(name), times, documents);
     }
 
-    /**
-     * Yarn quarantines a version the registry does not date, or dates inside the last day, so a
-     * date well behind its gate is the default here. {@link NpmPublishAgeTest} is what happens when
-     * a scenario sets one deliberately.
-     */
+    /** Yarn quarantines an undated version, so the default sits well behind its gate. */
     private static final String LONG_AGO = "2020-01-01T00:00:00.000Z";
 
     private static final DateTimeFormatter ISO = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
 
-    /**
-     * npm never moves {@code latest} onto a prerelease while a release exists, and a backpatch must
-     * not become what {@code npm install <pkg>} hands out.
-     */
+    /** A backpatch must not become what {@code npm install <pkg>} hands out. */
     private String latest(String name) {
         List<String> all = sorted(name);
         List<String> releases = all.stream().filter(version -> !version.contains("-")).toList();
@@ -238,8 +215,7 @@ public final class MockNpmRegistry {
               .orElse("application/octet-stream");
             byte[] body = response.body();
             if (contentType.contains("json")) {
-                // Upstream advertises its own tarball URLs; a client following one would leave the
-                // proxy and, for a package this registry overlays, see the unpatched view.
+                // A client following upstream's own tarball URL would leave the proxy.
                 body = new String(body, UTF_8)
                   .replace(UPSTREAM, url().substring(0, url().length() - 1))
                   .getBytes(UTF_8);

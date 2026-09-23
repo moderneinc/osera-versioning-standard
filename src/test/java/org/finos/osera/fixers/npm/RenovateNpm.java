@@ -13,8 +13,7 @@ import static org.finos.osera.fixers.ext.ToolProcess.request;
 
 /**
  * Renovate against a {@code package.json}, twice. {@code ignoreUnstable} ships true and a backpatch
- * is a prerelease, so a consumer who configures nothing is offered the next major instead. The
- * difference between the two columns is what the standard has to tell people to set.
+ * is a prerelease, so the difference between the columns is what the standard has to tell people.
  */
 public sealed interface RenovateNpm extends NpmRemediator permits RenovateNpm.Stock, RenovateNpm.Configured {
 
@@ -57,12 +56,7 @@ public sealed interface RenovateNpm extends NpmRemediator permits RenovateNpm.St
         });
     }
 
-    /**
-     * Renovate as installed, configured with nothing.
-     *
-     * <p>Every value here is what {@code getOptions()} reports as the shipped default, so that the
-     * column measures a consumer who changed nothing rather than one this suite half-configured.
-     */
+    /** Every value is what {@code getOptions()} reports as shipped, so this is a consumer who changed nothing. */
     final class Stock implements RenovateNpm {
         @Override
         public Map<String, Object> lookup() {
@@ -90,8 +84,7 @@ public sealed interface RenovateNpm extends NpmRemediator permits RenovateNpm.St
     final class Configured implements RenovateNpm {
         @Override
         public Map<String, Object> lookup() {
-            // The defaults, with the two that hide a prerelease backpatch turned off. That pair is
-            // what the recommendation has to tell a consumer to set.
+            // The defaults, with the two that hide a prerelease backpatch turned off.
             return Map.of(
               "rangeStrategy", "replace",
               "separateMinorPatch", false,
