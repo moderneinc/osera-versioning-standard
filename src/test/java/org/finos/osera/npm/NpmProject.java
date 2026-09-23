@@ -113,8 +113,9 @@ public final class NpmProject {
 
             Path installed = project.resolve("node_modules").resolve(name).resolve("package.json");
             if (!Files.exists(installed)) {
-                // A range nothing satisfies is an answer, not a failure; anything else is not.
-                if (install.exitValue() != 0 && !unsatisfiable(output)) {
+                // A manager that considered the versions and installed none of them is an answer,
+                // not a failure; anything else is not.
+                if (install.exitValue() != 0 && !refused(output)) {
                     throw new IllegalStateException(pm + " install failed:\n" + output);
                 }
                 return "nothing";
@@ -148,11 +149,16 @@ public final class NpmProject {
         return command;
     }
 
-    /** A range nothing satisfies is an answer; each manager phrases it differently. */
-    private static boolean unsatisfiable(String output) {
+    /**
+     * Whether the manager declined rather than broke. Each phrases it differently, and Yarn has two
+     * ways to decline: nothing satisfies the range, or everything that does is too newly published
+     * for its age gate to allow.
+     */
+    private static boolean refused(String output) {
         return output.contains("No matching version")
                || output.contains("No candidates found")
                || output.contains("doesn't satisfy")
-               || output.contains("could not be found");
+               || output.contains("could not be found")
+               || output.contains("are quarantined");
     }
 }

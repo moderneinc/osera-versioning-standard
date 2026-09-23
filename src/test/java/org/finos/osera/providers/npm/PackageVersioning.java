@@ -3,6 +3,7 @@ package org.finos.osera.providers.npm;
 import org.finos.osera.npm.MockNpmRegistry;
 import org.finos.osera.npm.SemverOrder;
 
+import java.time.Instant;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -51,6 +52,19 @@ public sealed abstract class PackageVersioning permits NextPatchPrerelease {
     public final String publish(String name, String base, String producer, int patchSequence) {
         String patched = version(base, producer, patchSequence);
         registry.publish(name, patched);
+        return patched;
+    }
+
+    /**
+     * As {@link #publish(String, String)}, for a backpatch the producer has only just released.
+     *
+     * <p>Which is the normal case: a backpatch exists because a vulnerability was disclosed, so it
+     * is new when a consumer most needs it. Yarn's {@code npmMinimalAgeGate} is the only thing
+     * measured here that reads a publish date.
+     */
+    public final String publishJustNow(String name, String base) {
+        String patched = version(base, OSERA, 1);
+        registry.publish(name, patched, Instant.now());
         return patched;
     }
 

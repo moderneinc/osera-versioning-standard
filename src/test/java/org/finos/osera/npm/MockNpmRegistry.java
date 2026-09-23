@@ -16,6 +16,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +42,7 @@ public final class MockNpmRegistry {
     private static final String UPSTREAM = "https://registry.npmjs.org";
 
     private final Map<String, Set<String>> versions = new ConcurrentHashMap<>();
+    private final Map<String, String> published = new ConcurrentHashMap<>();
     // What each version depends on. A registry that cannot say so cannot serve a scenario where
     // the backpatch arrives underneath something else: the lock engine re-resolves, finds the
     // package orphaned, and refuses with RESOLUTION_REQUIRED.
@@ -79,6 +83,16 @@ public final class MockNpmRegistry {
     /** Adds a version. Takes effect on the next request; the port does not move. */
     public void publish(String name, String version) {
         publish(name, version, Map.of());
+    }
+
+    /**
+     * As {@link #publish(String, String)}, for a version published at a stated moment rather than
+     * long ago. Yarn's age gate is the only thing that reads this, and only a scenario asking what
+     * the gate does needs to set it.
+     */
+    public void publish(String name, String version, Instant publishedAt) {
+        publish(name, version, Map.of());
+        published.put(name + "@" + version, ISO.format(publishedAt.atOffset(ZoneOffset.UTC)));
     }
 
     /** As {@link #publish(String, String)}, for a version that depends on something. */
@@ -155,7 +169,8 @@ public final class MockNpmRegistry {
           .map(version -> "\"%s\": %s".formatted(version, versionDocument(name, version)))
           .collect(Collectors.joining(",\n"));
         String times = sorted(name).stream()
-          .map(version -> "\"%s\": \"%s\"".formatted(version, PUBLISHED))
+          .map(version -> "\"%s\": \"%s\""
+            .formatted(version, published.getOrDefault(name + "@" + version, LONG_AGO)))
           .collect(Collectors.joining(",\n"));
         return """
           {
@@ -176,12 +191,14 @@ public final class MockNpmRegistry {
      * reason, including ones resolving to an ordinary upstream release, so it is not a fact about
      * backpatches and must not be measured as one.
      *
-     * <p>A date well behind the gate is the honest fixture: these scenarios ask which version a
-     * manager picks, and a real registry dates what it serves. What the gate does to a backpatch
-     * published in response to a CVE — which is new by definition — is a question of its own, and
-     * wants a scenario that sets the date deliberately rather than a harness that never sets one.
+     * <p>A date well behind the gate is the honest default: most of these scenarios ask which
+     * version a manager picks, and a real registry dates what it serves. A scenario that is asking
+     * about the gate itself says when a version was published, through
+     * {@link #publish(String, String, Instant)}.
      */
-    private static final String PUBLISHED = "2020-01-01T00:00:00.000Z";
+    private static final String LONG_AGO = "2020-01-01T00:00:00.000Z";
+
+    private static final DateTimeFormatter ISO = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
 
     /**
      * npm never moves {@code latest} onto a prerelease while a release exists, and a backpatch must
