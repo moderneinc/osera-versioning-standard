@@ -80,14 +80,12 @@ public class ProviderVersioningResolver implements ParameterResolver {
         private Sealed() {
         }
 
-        public static Stream<Class<?>> types(Class<?> type) {
-            return Arrays.stream(type.getPermittedSubclasses());
+        public static <T> Stream<Class<? extends T>> types(Class<T> type) {
+            return Arrays.stream(type.getPermittedSubclasses()).map(impl -> impl.asSubclass(type));
         }
 
         public static <T> Stream<T> implementations(Class<T> type) {
-            return Arrays.stream(type.getPermittedSubclasses())
-              .map(impl -> impl.asSubclass(type))
-              .map(ReflectionSupport::newInstance);
+            return types(type).<T>map(ReflectionSupport::newInstance);
         }
     }
 }
