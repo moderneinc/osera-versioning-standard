@@ -4,16 +4,21 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * SemVer 2.0.0 §11 precedence, enough of it to order a packument. Not a general implementation:
- * build metadata does not occur in any scheme this suite publishes to npm, so it is not handled.
+ * SemVer 2.0.0 §11 precedence, enough of it to order a packument.
+ *
+ * <p>Build metadata is discarded before anything is compared, which is §11's own rule and not a
+ * simplification: "Build metadata MUST be ignored when determining version precedence", so
+ * {@code 1.4.1+osera.1} and {@code 1.4.1} are the same version. That is the whole reason the
+ * build-metadata scheme the JVM side measures cannot carry a producer on npm, and
+ * {@link NpmBuildMetadataTest} is where the consequence is measured.
  */
 public enum SemverOrder implements Comparator<String> {
     INSTANCE;
 
     @Override
     public int compare(String left, String right) {
-        String[] leftParts = left.split("-", 2);
-        String[] rightParts = right.split("-", 2);
+        String[] leftParts = withoutBuildMetadata(left).split("-", 2);
+        String[] rightParts = withoutBuildMetadata(right).split("-", 2);
 
         int numeric = compareNumeric(leftParts[0], rightParts[0]);
         if (numeric != 0) {
@@ -26,6 +31,12 @@ public enum SemverOrder implements Comparator<String> {
             return leftPre ? -1 : 1;
         }
         return leftPre ? comparePrerelease(leftParts[1], rightParts[1]) : 0;
+    }
+
+    /** Everything from the first {@code +} is metadata, and §11 says precedence cannot see it. */
+    private static String withoutBuildMetadata(String version) {
+        int plus = version.indexOf('+');
+        return plus < 0 ? version : version.substring(0, plus);
     }
 
     private static int compareNumeric(String left, String right) {

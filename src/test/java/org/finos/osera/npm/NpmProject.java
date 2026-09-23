@@ -138,7 +138,9 @@ public final class NpmProject {
         List<String> command = new ArrayList<>(PackageManagers.command(pm));
         command.add("install");
         command.addAll(switch (pm) {
-            case Npm -> List.of("--silent", "--no-audit", "--no-fund", "--prefer-online");
+            // Not --silent: the output is only ever read when an install failed, and --silent
+            // suppresses the reason, which leaves "Npm install failed:" and nothing after it.
+            case Npm -> List.of("--no-audit", "--no-fund", "--prefer-online");
             case Pnpm -> List.of("--ignore-scripts", "--no-strict-peer-dependencies");
             case YarnBerry -> List.of("--mode", "skip-build");
             // --mode is Berry's; Classic has its own flags and its own resolutions parser, which
