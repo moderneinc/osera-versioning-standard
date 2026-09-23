@@ -28,8 +28,15 @@ public record NpmWrittenConstraintTest(PackageVersioning versioning) {
       1.4.2-osera-00001  | nothing more              | 1    | -                  | 1.4.2-osera-00001
       1.4.2-osera-00001  | our second backpatch      | 2    | -                  | 1.4.2-osera-00002
       1.4.2-osera-00001  | the maintainer's 1.4.2    | 1    | 1.4.2              | 1.4.2
+      1.4.2-osera-00001  | the maintainer's 1.4.3    | 1    | 1.4.2,1.4.3        | 1.4.3
+      1.4.2-osera-00001  | an unreleased 1.4.2-rc.1  | 1    | 1.4.2-rc.1         | 1.4.2-osera-00001
+      1.4.2-osera-00001  | a rival's backpatch       | 1    | 1.4.2-zenith-00001 | 1.4.2-osera-00001
       ^1.4.2-osera-00001 | nothing more              | 1    | -                  | 1.4.2-osera-00001
+      ^1.4.2-osera-00001 | our second backpatch      | 2    | -                  | 1.4.2-osera-00002
       ^1.4.2-osera-00001 | the maintainer's 1.4.2    | 1    | 1.4.2              | 1.4.2
+      ^1.4.2-osera-00001 | the maintainer's 1.4.3    | 1    | 1.4.2,1.4.3        | 1.4.3
+      ^1.4.2-osera-00001 | an unreleased 1.4.2-rc.1  | 1    | 1.4.2-rc.1         | 1.4.2-osera-00001
+      ^1.4.2-osera-00001 | a rival's backpatch       | 1    | 1.4.2-zenith-00001 | 1.4.2-osera-00001
       """, useHeadersInDisplayName = true)
     void landsOnTheRightVersion(String constraint, String description, int ours,
                                 @Nullable String upstream, String expected) {
