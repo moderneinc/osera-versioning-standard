@@ -107,9 +107,12 @@ rather than before it. So this chapter's first complaint does not arise.
 | ties break on the producer's name | yes | yes |
 
 The first row was measured the same way as its JVM counterpart: five OSERA backpatches against one
-of Zenith's, with nobody naming a producer. The count never enters the comparison, because
-node-semver compares the prerelease identifiers left to right and `osera` against `zenith` is
-settled before any sequence number is reached. Publishing more often buys a producer nothing.
+of Zenith's, with nobody naming a producer. The count never enters the comparison, and the reason
+is the same one that makes chapter 1 zero-pad the sequence. A hyphen does not separate prerelease
+identifiers, so `osera-00001` is a single identifier rather than a producer followed by a number,
+and comparing it to `zenith-00001` is one string comparison that `o` against `z` settles at the
+first character. The digits are in that string, at the end, and nothing ever reads them.
+Publishing more often buys a producer nothing.
 
 Which is the second row, and it is the same answer as the JVM's for the same reason. `zenith` sorts
 after `osera` as a string, so with both published and nobody naming either, a consumer lands on
@@ -119,7 +122,7 @@ Naming the producer works here as it does there. Told the producer's line throug
 constraint or Renovate's `allowedVersions`, both land on the OSERA backpatch; the unconfigured bots
 do not, but they were not going to offer a prerelease at all.
 
-## The constraint cannot name a producer, only a version
+### The constraint cannot name a producer, only a version
 
 There is one thing here that has no JVM counterpart, and it is the sharpest cost this book
 measures, because it lands on the exact constraint chapter 2 recommends.
