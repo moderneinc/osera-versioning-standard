@@ -23,6 +23,7 @@ final class Tarball {
     }
 
     static byte[] of(String name, String version, Map<String, String> dependencies) {
+        //language=JSON
         byte[] content = """
           {
             "name": "%s",

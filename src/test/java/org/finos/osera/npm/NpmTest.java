@@ -73,6 +73,7 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
 
     /** What OpenRewrite leaves behind: the declaration moved, and an override it did not need. */
     private static String manifestWithRedundantOverride(PackageManager pm, String constraint) {
+        //language=JSON
         return """
           {
             "name": "consumer",
@@ -132,6 +133,7 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
 
     /** The root once OpenRewrite has pinned the package for every member. */
     private static String workspaceRootWithOverride(PackageManager pm, String constraint) {
+        //language=JSON
         return """
           {
             "name": "consumer",
@@ -144,6 +146,7 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
 
     /** A root that declares nothing itself and delegates to its members. */
     private static String workspaceRoot() {
+        //language=JSON
         return """
           {
             "name": "consumer",
@@ -155,6 +158,7 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
     }
 
     private static String manifest(String constraint) {
+        //language=JSON
         return """
           {
             "name": "consumer",
@@ -167,6 +171,7 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
     }
 
     private String lock(String constraint, String resolved) {
+        //language=JSON
         return """
           {
             "name": "consumer",

@@ -28,24 +28,32 @@ public record NpmCatalogTest(PackageVersioning versioning) implements NpmBuild {
     /** Each spelling is a separate parse path in every tool, so each gets a row. */
     public enum Catalog {
         // packages is what makes this a workspace, the smallest project a pnpm catalog needs.
-        PnpmDefault(PackageManager.Pnpm, "pnpm-workspace.yaml", "catalog:", """
+        PnpmDefault(PackageManager.Pnpm, "pnpm-workspace.yaml", "catalog:",
+          //language=yaml
+          """
           packages:
             - '.'
           catalog:
             %s: '%s'
           """),
-        PnpmNamed(PackageManager.Pnpm, "pnpm-workspace.yaml", "catalog:stable", """
+        PnpmNamed(PackageManager.Pnpm, "pnpm-workspace.yaml", "catalog:stable",
+          //language=yaml
+          """
           packages:
             - '.'
           catalogs:
             stable:
               %s: '%s'
           """),
-        YarnDefault(PackageManager.YarnBerry, ".yarnrc.yml", "catalog:", """
+        YarnDefault(PackageManager.YarnBerry, ".yarnrc.yml", "catalog:",
+          //language=yaml
+          """
           catalog:
             %s: '%s'
           """),
-        YarnNamed(PackageManager.YarnBerry, ".yarnrc.yml", "catalog:stable", """
+        YarnNamed(PackageManager.YarnBerry, ".yarnrc.yml", "catalog:stable",
+          //language=yaml
+          """
           catalogs:
             stable:
               %s: '%s'
@@ -79,7 +87,7 @@ public record NpmCatalogTest(PackageVersioning versioning) implements NpmBuild {
     /** If a catalog entry is an ordinary constraint, {@link NpmDeclaredRangeTest} applies inside one. */
     @ParameterizedTest(name = "{0}")
     @EnumSource(Catalog.class)
-    void aCatalogEntryResolvesLikeAnyOtherConstraint(Catalog catalog) {
+    void catalogEntry(Catalog catalog) {
         assumeTrue(PackageManagers.isUsable(catalog.pm),
           catalog.pm + " is not installed at the measured major");
 
@@ -122,6 +130,7 @@ public record NpmCatalogTest(PackageVersioning versioning) implements NpmBuild {
     }
 
     private static String manifest(String logger, Catalog catalog) {
+        //language=JSON
         return """
           {
             "name": "consumer",

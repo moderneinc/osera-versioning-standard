@@ -45,7 +45,7 @@ public record NpmCrossProducerTest(PackageVersioning versioning) implements NpmB
      * sequence sits after the producer token, so it should not enter the comparison at all.
      */
     @Test
-    void aBusierProducerDoesNotOutrankTheOther() {
+    void busierProducer() {
         String pkg = versioning.freshPackage();
         versioning.publishUpstream(pkg, "1.4.0", "1.4.1", "1.5.0", "2.0.0");
         for (int sequence = 1; sequence <= 5; sequence++) {
@@ -73,6 +73,7 @@ public record NpmCrossProducerTest(PackageVersioning versioning) implements NpmB
     }
 
     private static String manifest(String constraint) {
+        //language=JSON
         return """
           {
             "name": "consumer",
@@ -85,6 +86,7 @@ public record NpmCrossProducerTest(PackageVersioning versioning) implements NpmB
     }
 
     private static String manifestWithOverride(String constraint) {
+        //language=JSON
         return """
           {
             "name": "consumer",

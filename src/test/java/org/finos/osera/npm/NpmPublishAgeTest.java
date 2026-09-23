@@ -19,9 +19,9 @@ public record NpmPublishAgeTest(PackageVersioning versioning) {
 
     private static final String UPSTREAM_FIX = "1.4.2";
 
-    @ParameterizedTest(name = "{0}")
+    @ParameterizedTest(name = "{displayName} — {0}")
     @EnumSource(value = PackageManager.class, names = {"Npm", "Pnpm", "YarnBerry"})
-    void aBackpatchPublishedMinutesAgo(PackageManager pm) {
+    void freshBackpatch(PackageManager pm) {
         assumeTrue(PackageManagers.isUsable(pm), pm + " is not installed at the measured major");
 
         String logger = versioning.freshPackage();
@@ -38,9 +38,9 @@ public record NpmPublishAgeTest(PackageVersioning versioning) {
      * here, so a manager that declines the new version falls back rather than failing, and whether
      * this is a cost of the scheme or of the ecosystem turns on it.
      */
-    @ParameterizedTest(name = "{0}")
+    @ParameterizedTest(name = "{displayName} — {0}")
     @EnumSource(value = PackageManager.class, names = {"Npm", "Pnpm", "YarnBerry"})
-    void theMaintainersOwnFixPublishedMinutesAgo(PackageManager pm) {
+    void freshMaintainerFix(PackageManager pm) {
         assumeTrue(PackageManagers.isUsable(pm), pm + " is not installed at the measured major");
 
         String logger = versioning.freshPackage();

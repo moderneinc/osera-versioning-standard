@@ -21,7 +21,7 @@ public record NpmBuildMetadataTest(PackageVersioning versioning) {
     private static final String PATCHED = "1.4.1+osera.1";
 
     @Test
-    void semverRanksABackpatchAboveTheReleaseItPatches() {
+    void precedence() {
         assertThat(SemverOrder.INSTANCE.compare(PATCHED, BASE))
           .as("where SemVer §11 puts %s against %s", PATCHED, BASE)
           .isPositive();
@@ -29,7 +29,7 @@ public record NpmBuildMetadataTest(PackageVersioning versioning) {
 
     /** The least a scheme has to support: if naming the build does not deliver it, nothing can. */
     @Test
-    void aConsumerWhoNamesTheProducersBuildExactly() {
+    void exactVersion() {
         String logger = versioning.freshPackage();
         versioning.publishUpstream(logger, "1.4.0", BASE, "1.5.0", "2.0.0");
         versioning.registry().publish(logger, PATCHED);
@@ -40,7 +40,7 @@ public record NpmBuildMetadataTest(PackageVersioning versioning) {
     }
 
     @Test
-    void aConsumerHeldOnTheLineByATilde() {
+    void tildeOnTheLine() {
         String logger = versioning.freshPackage();
         versioning.publishUpstream(logger, "1.4.0", BASE, "1.5.0", "2.0.0");
         versioning.registry().publish(logger, PATCHED);

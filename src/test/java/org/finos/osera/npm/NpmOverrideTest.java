@@ -25,7 +25,7 @@ public record NpmOverrideTest(PackageVersioning versioning) {
       "Pnpm,      pnpm.overrides",
       "YarnBerry, resolutions"
     })
-    void overrideReachesATransitive(PackageManager pm, String key) {
+    void transitiveOverride(PackageManager pm, String key) {
         assumeTrue(PackageManagers.isUsable(pm), pm + " is not installed at the measured major");
 
         String logger = versioning.freshPackage();
@@ -51,7 +51,7 @@ public record NpmOverrideTest(PackageVersioning versioning) {
       "pkg@range,           NAME@~1.4.1",
       "wildcard path,       **/NAME"
     })
-    void yarnClassicResolutionKeyForms(String form, String keyTemplate) {
+    void yarnClassicKeyForms(String form, String keyTemplate) {
         assumeTrue(PackageManagers.isUsable(PackageManager.YarnClassic), "Yarn Classic is not installed");
 
         String logger = versioning.freshPackage();
@@ -59,6 +59,7 @@ public record NpmOverrideTest(PackageVersioning versioning) {
         versioning.registry().publish(WRAPPER, "3.0.0", Map.of(logger, "~1.4.1"));
         String patched = versioning.publish(logger, "1.4.1");
 
+        //language=JSON
         String manifest = """
           {
             "name": "consumer",
@@ -74,6 +75,7 @@ public record NpmOverrideTest(PackageVersioning versioning) {
     }
 
     private static String manifestWithOverride(PackageManager pm, String logger, String constraint) {
+        //language=JSON
         return """
           {
             "name": "consumer",

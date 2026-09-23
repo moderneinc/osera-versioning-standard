@@ -33,13 +33,15 @@ public final class NpmProject {
      */
     public static String resolve(MockNpmRegistry registry, PackageManager pm,
                                  String name, String declared) {
-        return install(registry, pm, name, """
+        //language=JSON
+        String manifest = """
           {
             "name": "consumer",
             "version": "1.0.0",
             "dependencies": { "%s": "%s" }
           }
-          """.formatted(name, declared));
+          """.formatted(name, declared);
+        return install(registry, pm, name, manifest);
     }
 
     /**
@@ -71,13 +73,15 @@ public final class NpmProject {
               + (pm == PackageManager.Pnpm ? "node-linker=hoisted\n" : ""));
             if (pm == PackageManager.YarnBerry) {
                 // Berry reads neither from .npmrc, and refuses plaintext http unless whitelisted.
-                Files.writeString(project.resolve(".yarnrc.yml"), """
+                //language=yaml
+                String yarnrc = """
                   nodeLinker: node-modules
                   enableGlobalCache: false
                   npmRegistryServer: "%s"
                   unsafeHttpWhitelist:
                     - 127.0.0.1
-                  """.formatted(registry.url()));
+                  """.formatted(registry.url());
+                Files.writeString(project.resolve(".yarnrc.yml"), yarnrc);
             }
             // Appended, and last: a Yarn catalog shares .yarnrc.yml with the registry settings above.
             for (Map.Entry<String, String> file : alongside.entrySet()) {

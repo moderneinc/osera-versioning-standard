@@ -72,6 +72,7 @@ public record NpmTransitiveTest(PackageVersioning versioning) implements NpmBuil
 
     /** The consumer declares the wrapper and nothing else. */
     private static String manifest() {
+        //language=JSON
         return """
           {
             "name": "consumer",
@@ -84,6 +85,7 @@ public record NpmTransitiveTest(PackageVersioning versioning) implements NpmBuil
     }
 
     private static String withOverride(PackageManager pm, String logger, String constraint) {
+        //language=JSON
         return """
           {
             "name": "consumer",
@@ -110,6 +112,7 @@ public record NpmTransitiveTest(PackageVersioning versioning) implements NpmBuil
 
     private String lock(String logger, String resolved) {
         String base = versioning.registry().url();
+        //language=JSON
         return """
           {
             "name": "consumer",

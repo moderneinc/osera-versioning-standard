@@ -168,6 +168,7 @@ public final class MockNpmRegistry {
           .map(version -> "\"%s\": \"%s\""
             .formatted(version, published.getOrDefault(name + "@" + version, LONG_AGO)))
           .collect(Collectors.joining(",\n"));
+        //language=JSON
         return """
           {
             "name": "%s",
@@ -209,6 +210,7 @@ public final class MockNpmRegistry {
 
     private String versionDocument(String name, String version) {
         byte[] tarball = tarball(name, version);
+        //language=JSON
         return """
           {
             "name": "%s",
