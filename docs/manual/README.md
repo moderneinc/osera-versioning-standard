@@ -1,6 +1,6 @@
 # How Build Tooling Treats an OSERA Backpatch
 
-FINOS OSERA evaluated several ways to version a backpatch and settled on one per ecosystem. On the
+FINOS OSERA evaluated several ways to version a backpatch. On the
 JVM it is `2.14.1.1-osera-00001` when the base version is numeric, `5.2.19.RELEASE-osera-00001`
 when it already ends in a qualifier. On npm it is `1.4.2-osera-00001`, a plain SemVer 2 prerelease
 of the maintainer's next patch version. They differ because the JVM's build tools do not implement

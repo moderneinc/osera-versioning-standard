@@ -122,9 +122,9 @@ all, so this is a floor and not a ceiling.
 A producer could republish under a scope they control, as `@osera/acme-logger`. That does reach a
 consumer, and it is not a versioning scheme: it changes the package's identity, so every
 declaration, every lockfile entry and every transitive reference to the original name has to be
-redirected to it. The working group ruled it out on those grounds rather than on anything measured
-here, and recording the ruling is all this chapter does with it. Yarn's `npm:` aliasing is the same
-proposal with a redirect in front, and falls with it.
+redirected to it. It is set aside on those grounds rather than on anything measured here, so this
+chapter records the reasoning and not a result. Yarn's `npm:` aliasing is the same proposal with a
+redirect in front, and goes with it.
 
 ## What we measured
 

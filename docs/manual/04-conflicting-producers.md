@@ -141,11 +141,12 @@ the same release with a token later in the alphabet. There is no npm constraint 
 three and not the fourth. An exact pin avoids it and gives up the other three, including the
 handover to the maintainer's real fix.
 
-The mitigation is the one the JVM section arrives at, and it is stronger on npm rather than weaker:
-ordering only decides between versions a consumer can see, and on npm a consumer sees exactly one
-registry. There is no overlay and no per-package routing, so a consumer either resolves against a
-registry carrying both producers or they do not. An enterprise proxy carrying one producer's
-backpatches never has this problem.
+The mitigation is the one the JVM section arrives at. Ordering only decides between versions a
+consumer can see, and a producer cannot publish `acme-logger@1.4.2-osera-*` to npmjs without owning
+the package. A backpatch therefore only ever reaches a consumer through a registry the consumer
+configured, whether that is an internal registry or an overlay aggregating npmjs with a producer's
+own versions, which is what this suite's mock does and what Artifactory, Nexus and Verdaccio do in
+production. Two producers meet only where an overlay carries both.
 
 But that mitigation is a deployment fact, not a property of the version, and the recommendation in
 chapter 2 is a version. **A standard that tells people to write `~1.4.2-osera-00001` is telling

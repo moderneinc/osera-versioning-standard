@@ -28,8 +28,6 @@ import static org.openrewrite.javascript.marker.NodeResolutionResult.PackageMana
  */
 public record NpmTest(PackageVersioning versioning) implements NpmBuild {
 
-    private static final String PACKAGE = "acme-logger";
-
     /**
      * Without this, every "no change" result in this class is worthless: a missing marker makes the
      * recipe return the tree untouched and a marker without a package manager makes lock
@@ -37,13 +35,14 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
      */
     @Test
     void control() {
-        versioning.publishUpstream(PACKAGE, "1.4.0", "1.4.1", "1.5.0", "2.0.0");
+        String pkg = versioning.freshPackage();
+        versioning.publishUpstream(pkg, "1.4.0", "1.4.1", "1.5.0", "2.0.0");
 
         rewriteRun(
-          spec -> spec.recipe(new UpgradeDependencyVersion(PACKAGE, null, "~1.5.0")),
-          packageJson(manifest("~1.4.1"), manifest("~1.5.0"),
-            nodeResolutionResult(Npm, dependency(PACKAGE, "~1.4.1"))),
-          packageLock(lock("~1.4.1", "1.4.1"), null, spec -> spec.after(regenerated -> {
+          spec -> spec.recipe(new UpgradeDependencyVersion(pkg, null, "~1.5.0")),
+          packageJson(manifest(pkg, "~1.4.1"), manifest(pkg, "~1.5.0"),
+            nodeResolutionResult(Npm, dependency(pkg, "~1.4.1"))),
+          packageLock(lock(pkg, "~1.4.1", "1.4.1"), null, spec -> spec.after(regenerated -> {
               if (!regenerated.contains("\"version\": \"1.5.0\"")) {
                   throw new AssertionError("""
                     The control did not regenerate the lock, so no "unchanged" result in this \
@@ -55,24 +54,25 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
 
     @EachNpmRemediatorAndManager
     void directDependency(NpmRemediator remediator, PackageManager pm) {
-        versioning.publishUpstream(PACKAGE, "1.4.0", "1.4.1", "1.5.0", "2.0.0");
-        String patched = versioning.publish(PACKAGE, "1.4.1");
+        String pkg = versioning.freshPackage();
+        versioning.publishUpstream(pkg, "1.4.0", "1.4.1", "1.5.0", "2.0.0");
+        String patched = versioning.publish(pkg, "1.4.1");
 
         // The manifest only: two columns never regenerate a lock, and the control measures that.
         // OpenRewrite's transitive recipe also writes an override for a dependency that is already
         // direct, so the expected output carries that redundancy rather than hiding it.
         String after = remediator.alsoPinsWithAnOverride()
-          ? manifestWithRedundantOverride(pm, versioning.constraint(patched))
-          : manifest(versioning.constraint(patched));
+          ? manifestWithRedundantOverride(pkg, pm, versioning.constraint(patched))
+          : manifest(pkg, versioning.constraint(patched));
 
         rewriteRun(
-          NpmRemediator.asSpec(remediator, versioning, PACKAGE),
-          packageJson(manifest("~1.4.1"), after,
-            nodeResolutionResult(pm, dependency(PACKAGE, "~1.4.1"))));
+          NpmRemediator.asSpec(remediator, versioning, pkg),
+          packageJson(manifest(pkg, "~1.4.1"), after,
+            nodeResolutionResult(pm, dependency(pkg, "~1.4.1"))));
     }
 
     /** What OpenRewrite leaves behind: the declaration moved, and an override it did not need. */
-    private static String manifestWithRedundantOverride(PackageManager pm, String constraint) {
+    private static String manifestWithRedundantOverride(String pkg, PackageManager pm, String constraint) {
         //language=JSON
         return """
           {
@@ -82,7 +82,7 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
               "%s": "%s"
             },
           %s
-          }""".formatted(PACKAGE, constraint, Overrides.member(pm, PACKAGE, constraint));
+          }""".formatted(pkg, constraint, Overrides.member(pm, pkg, constraint));
     }
 
     /**
@@ -92,47 +92,48 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
      */
     @EachNpmRemediator
     void secondBackpatch(NpmRemediator remediator) {
-        PackageManager pm = Npm;
-        versioning.publishUpstream(PACKAGE, "1.4.0", "1.4.1", "1.5.0", "2.0.0");
-        versioning.publish(PACKAGE, "1.4.1", PackageVersioning.OSERA, 1);
-        String newest = versioning.publish(PACKAGE, "1.4.1", PackageVersioning.OSERA, 2);
+        String pkg = versioning.freshPackage();
+        versioning.publishUpstream(pkg, "1.4.0", "1.4.1", "1.5.0", "2.0.0");
+        versioning.publish(pkg, "1.4.1", PackageVersioning.OSERA, 1);
+        String newest = versioning.publish(pkg, "1.4.1", PackageVersioning.OSERA, 2);
 
-        String after = remediator.alsoPinsWithAnOverride()
-          ? manifestWithRedundantOverride(pm, versioning.constraint(newest))
-          : manifest(versioning.constraint(newest));
+        String after = remediator.alsoPinsWithAnOverride() ?
+          manifestWithRedundantOverride(pkg, Npm, versioning.constraint(newest)) :
+          manifest(pkg, versioning.constraint(newest));
 
         rewriteRun(
-          NpmRemediator.asSpec(remediator, versioning, PACKAGE),
-          packageJson(manifest("~1.4.1"), after,
-            nodeResolutionResult(pm, dependency(PACKAGE, "~1.4.1"))));
+          NpmRemediator.asSpec(remediator, versioning, pkg),
+          packageJson(manifest(pkg, "~1.4.1"), after,
+            nodeResolutionResult(Npm, dependency(pkg, "~1.4.1"))));
     }
 
     /** The analogue of the JVM's multiModule: the declaration is not in the file a tool starts from. */
     @EachNpmRemediatorAndManager
     void workspaceMember(NpmRemediator remediator, PackageManager pm) {
-        versioning.publishUpstream(PACKAGE, "1.4.0", "1.4.1", "1.5.0", "2.0.0");
-        String patched = versioning.publish(PACKAGE, "1.4.1");
+        String pkg = versioning.freshPackage();
+        versioning.publishUpstream(pkg, "1.4.0", "1.4.1", "1.5.0", "2.0.0");
+        String patched = versioning.publish(pkg, "1.4.1");
 
         // OpenRewrite also pins from the root, which for a workspace applies to every member.
         String rootAfter = remediator.alsoPinsWithAnOverride()
-          ? workspaceRootWithOverride(pm, versioning.constraint(patched))
+          ? workspaceRootWithOverride(pkg, pm, versioning.constraint(patched))
           : null;
 
         rewriteRun(
-          NpmRemediator.asSpec(remediator, versioning, PACKAGE),
+          NpmRemediator.asSpec(remediator, versioning, pkg),
           packageJson(workspaceRoot(), rootAfter,
             nodeResolutionResult(pm, List.of("packages/member/package.json"))),
           dir("packages/member",
-            packageJson(manifest("~1.4.1"),
+            packageJson(manifest(pkg, "~1.4.1"),
               // Pinned here as well as in the root, so the package ends up constrained three times.
               remediator.alsoPinsWithAnOverride()
-                ? manifestWithRedundantOverride(pm, versioning.constraint(patched))
-                : manifest(versioning.constraint(patched)),
-              nodeResolutionResult(pm, dependency(PACKAGE, "~1.4.1")))));
+                ? manifestWithRedundantOverride(pkg, pm, versioning.constraint(patched))
+                : manifest(pkg, versioning.constraint(patched)),
+              nodeResolutionResult(pm, dependency(pkg, "~1.4.1")))));
     }
 
     /** The root once OpenRewrite has pinned the package for every member. */
-    private static String workspaceRootWithOverride(PackageManager pm, String constraint) {
+    private static String workspaceRootWithOverride(String pkg, PackageManager pm, String constraint) {
         //language=JSON
         return """
           {
@@ -141,7 +142,7 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
             "private": true,
             "workspaces": [ "packages/*" ],
           %s
-          }""".formatted(Overrides.member(pm, PACKAGE, constraint));
+          }""".formatted(Overrides.member(pm, pkg, constraint));
     }
 
     /** A root that declares nothing itself and delegates to its members. */
@@ -157,7 +158,7 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
           """;
     }
 
-    private static String manifest(String constraint) {
+    private static String manifest(String pkg, String constraint) {
         //language=JSON
         return """
           {
@@ -167,10 +168,10 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
               "%s": "%s"
             }
           }
-          """.formatted(PACKAGE, constraint);
+          """.formatted(pkg, constraint);
     }
 
-    private String lock(String constraint, String resolved) {
+    private String lock(String pkg, String constraint, String resolved) {
         //language=JSON
         return """
           {
@@ -191,7 +192,7 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
               }
             }
           }
-          """.formatted(PACKAGE, constraint, PACKAGE, resolved,
-          versioning.registry().url(), PACKAGE, PACKAGE, resolved);
+          """.formatted(pkg, constraint, pkg, resolved,
+          versioning.registry().url(), pkg, pkg, resolved);
     }
 }

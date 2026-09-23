@@ -29,9 +29,13 @@ import java.util.stream.Collectors;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
- * An npm registry that holds a producer's versions and proxies everything else to npmjs. npm has
- * no overlay and this scheme has no scope to route on, so a consumer points at exactly one
- * registry, which makes an enterprise proxy the only realistic topology.
+ * An npm registry that holds a producer's versions and proxies everything else to npmjs, which is
+ * what an internal registry does in production. This scheme publishes no scope, so a consumer
+ * cannot route the package anywhere else and points at exactly one registry.
+ *
+ * <p>Plain HTTP, unlike {@code MockMavenRepository}: nothing here measures TLS, and every npm
+ * client, Renovate and Dependabot would otherwise each need its own CA configuration. That is why
+ * {@code NpmProject} whitelists the host for Yarn Berry.
  */
 public final class MockNpmRegistry {
 

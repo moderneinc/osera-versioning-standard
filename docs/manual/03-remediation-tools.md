@@ -188,8 +188,10 @@ changed nothing rather than one this suite half-configured. The configured colum
 `allowedVersions` to the producer's line and `ignoreUnstable: false`, and those two are the whole
 of what is required.
 
-Dependabot gets a version ceiling rather than a producer pattern, for the same reason as on the
-JVM.
+Dependabot gets neither. On the JVM it is given a version ceiling, because it has no way to say
+"only versions matching the producer's pattern" and a ceiling is the nearest thing. Here it is given
+nothing to rule out, because what an unconfigured consumer is offered is itself part of what this
+section measures.
 
 ### How the version reaches the dependency
 

@@ -4,7 +4,6 @@ import org.finos.osera.fixers.npm.EachNpmRemediator;
 import org.finos.osera.fixers.npm.NpmRemediator;
 import org.finos.osera.providers.npm.PackageVersioning;
 import org.junit.jupiter.api.Test;
-import org.openrewrite.javascript.marker.NodeResolutionResult.PackageManager;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.openrewrite.javascript.Assertions.dependency;
@@ -20,23 +19,23 @@ import static org.openrewrite.javascript.marker.NodeResolutionResult.PackageMana
  */
 public record NpmCrossProducerTest(PackageVersioning versioning) implements NpmBuild {
 
-    private static final String PACKAGE = "acme-logger";
     private static final String RIVAL = "zenith";
 
     /** Told which producer it wants, does a tool stay on ours when another sorts higher? */
     @EachNpmRemediator
     void namedProducer(NpmRemediator remediator) {
-        versioning.publishUpstream(PACKAGE, "1.4.0", "1.4.1", "1.5.0", "2.0.0");
-        String ours = versioning.publish(PACKAGE, "1.4.1");
-        versioning.publish(PACKAGE, "1.4.1", RIVAL, 1);
+        String pkg = versioning.freshPackage();
+        versioning.publishUpstream(pkg, "1.4.0", "1.4.1", "1.5.0", "2.0.0");
+        String ours = versioning.publish(pkg, "1.4.1");
+        versioning.publish(pkg, "1.4.1", RIVAL, 1);
 
         rewriteRun(
-          NpmRemediator.asSpec(remediator, versioning, PACKAGE),
-          packageJson(manifest("~1.4.1"),
-            remediator.alsoPinsWithAnOverride()
-              ? manifestWithOverride(versioning.constraint(ours))
-              : manifest(versioning.constraint(ours)),
-            nodeResolutionResult(Npm, dependency(PACKAGE, "~1.4.1"))));
+          NpmRemediator.asSpec(remediator, versioning, pkg),
+          packageJson(manifest(pkg, "~1.4.1"),
+            remediator.alsoPinsWithAnOverride() ?
+              manifestWithOverride(pkg, versioning.constraint(ours)) :
+              manifest(pkg, versioning.constraint(ours)),
+            nodeResolutionResult(Npm, dependency(pkg, "~1.4.1"))));
     }
 
     /**
@@ -53,7 +52,7 @@ public record NpmCrossProducerTest(PackageVersioning versioning) implements NpmB
         }
         String rival = versioning.publish(pkg, "1.4.1", RIVAL, 1);
 
-        assertThat(NpmProject.resolve(versioning.registry(), PackageManager.Npm, pkg, "~1.4.2-0"))
+        assertThat(NpmProject.resolve(versioning.registry(), Npm, pkg, "~1.4.2-0"))
           .as("five of ours against one of theirs, and nobody named a producer")
           .isEqualTo(rival);
     }
@@ -66,13 +65,13 @@ public record NpmCrossProducerTest(PackageVersioning versioning) implements NpmB
         String ours = versioning.publish(pkg, "1.4.1");
         versioning.publish(pkg, "1.4.1", RIVAL, 1);
 
-        assertThat(NpmProject.resolve(versioning.registry(), PackageManager.Npm, pkg,
+        assertThat(NpmProject.resolve(versioning.registry(), Npm, pkg,
           versioning.constraint(ours)))
           .as("the constraint names our backpatch, and the rival sits at the same tuple")
           .isEqualTo(ours);
     }
 
-    private static String manifest(String constraint) {
+    private static String manifest(String pkg, String constraint) {
         //language=JSON
         return """
           {
@@ -82,10 +81,10 @@ public record NpmCrossProducerTest(PackageVersioning versioning) implements NpmB
               "%s": "%s"
             }
           }
-          """.formatted(PACKAGE, constraint);
+          """.formatted(pkg, constraint);
     }
 
-    private static String manifestWithOverride(String constraint) {
+    private static String manifestWithOverride(String pkg, String constraint) {
         //language=JSON
         return """
           {
@@ -95,6 +94,6 @@ public record NpmCrossProducerTest(PackageVersioning versioning) implements NpmB
               "%s": "%s"
             },
           %s
-          }""".formatted(PACKAGE, constraint, Overrides.member(Npm, PACKAGE, constraint));
+          }""".formatted(pkg, constraint, Overrides.member(Npm, pkg, constraint));
     }
 }
