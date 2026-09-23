@@ -1,7 +1,6 @@
 package org.finos.osera.npm;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.finos.osera.Directories;
 import org.openrewrite.javascript.marker.NodeResolutionResult.PackageManager;
 
 import java.io.IOException;
@@ -11,8 +10,10 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Comparator;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 /** A throwaway consumer project, installed for real, so the answer is read out of what landed. */
 public final class NpmProject {
@@ -119,8 +120,25 @@ public final class NpmProject {
         } finally {
             // A node_modules tree and a cache per probe, dozens of probes a run.
             if (project != null) {
-                Directories.deleteRecursively(project);
+                deleteRecursively(project);
             }
+        }
+    }
+
+    private static void deleteRecursively(Path directory) {
+        if (!Files.exists(directory)) {
+            return;
+        }
+        try (Stream<Path> paths = Files.walk(directory)) {
+            paths.sorted(Comparator.reverseOrder()).forEach(path -> {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            });
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
     }
 

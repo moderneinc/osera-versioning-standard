@@ -44,7 +44,7 @@ public record NpmTest(PackageVersioning versioning) implements NpmBuild {
           packageJson(manifest("~1.4.1"), manifest("~1.5.0"),
             nodeResolutionResult(Npm, dependency(PACKAGE, "~1.4.1"))),
           packageLock(lock("~1.4.1", "1.4.1"), null, spec -> spec.after(regenerated -> {
-              if (regenerated == null || !regenerated.contains("\"version\": \"1.5.0\"")) {
+              if (!regenerated.contains("\"version\": \"1.5.0\"")) {
                   throw new AssertionError("""
                     The control did not regenerate the lock, so no "unchanged" result in this \
                     class means anything.""");

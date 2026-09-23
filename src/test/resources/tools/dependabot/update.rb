@@ -60,15 +60,8 @@ request.fetch("targets").each do |target|
     # unconfigured consumer is itself part of the measurement.
     ignored_versions: target.fetch("ignoredVersions")
   )
-  # A dependency the consumer declares is updated by unlocking its own requirement. One that
-  # arrives underneath another has no requirement to unlock, and Dependabot reaches it through a
-  # different resolver entirely, asked for with :none. Asking only :own reports a transitive as
-  # un-updatable when the tool can in fact update it.
-  # Which unlock strategies to try, and in what order, is the caller's statement rather than this
-  # script's. A dependency the consumer declares is updated by unlocking its own requirement; one
-  # that arrives underneath another has no requirement of its own, and Dependabot reaches it
-  # through a different resolver, asked for with :none. The npm column wants both; the JVM columns
-  # want only :own, which is what they have always sent.
+  # A declared dependency is updated by unlocking its own requirement; one that arrives underneath
+  # another has none to unlock and is reached with :none. Which to try is the caller's statement.
   unlock = target.fetch("unlockStrategies", ["own"])
                  .map(&:to_sym)
                  .find { |strategy| checker.can_update?(requirements_to_unlock: strategy) }

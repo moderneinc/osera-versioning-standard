@@ -1,6 +1,5 @@
 package org.finos.osera.fixers.ext;
 
-import org.finos.osera.Directories;
 import org.jspecify.annotations.Nullable;
 import org.openrewrite.ExecutionContext;
 import org.openrewrite.Parser;
@@ -32,6 +31,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 /**
  * Makes a remediation tool that is neither a recipe nor on the JVM answer the same question as one
@@ -137,7 +137,7 @@ public final class ExternalRemediation extends ScanningRecipe<ExternalRemediatio
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             } finally {
-                Directories.deleteRecursively(work);
+                deleteRecursively(work);
             }
         }
 
@@ -182,6 +182,23 @@ public final class ExternalRemediation extends ScanningRecipe<ExternalRemediatio
             default -> throw new IllegalStateException("No parser for " + source.getClass().getSimpleName() +
                                                        "; add one when the TCK grows a source type");
         };
+    }
+
+    private static void deleteRecursively(Path directory) {
+        if (!Files.exists(directory)) {
+            return;
+        }
+        try (Stream<Path> paths = Files.walk(directory)) {
+            paths.sorted(Comparator.reverseOrder()).forEach(path -> {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            });
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     private static Path createTemporaryDirectory() {
