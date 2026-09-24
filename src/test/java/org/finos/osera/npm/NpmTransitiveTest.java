@@ -33,7 +33,11 @@ public record NpmTransitiveTest(PackageVersioning versioning) implements NpmBuil
 
     private static final String WRAPPER = "acme-wrapper";
 
-    /** Proves the recipe can change this fixture at all; see {@link NpmTest#control}. */
+    /**
+     * Proves the recipe can change this fixture at all; see {@link NpmTest#control}. A liveness
+     * check, not a no-op one: a manifest carrying no marker makes the recipe return the tree
+     * untouched, and every "no change" cell in this class would then mean nothing.
+     */
     @Test
     void control() {
         String logger = versioning.freshPackage();
@@ -43,7 +47,9 @@ public record NpmTransitiveTest(PackageVersioning versioning) implements NpmBuil
         rewriteRun(
           spec -> spec.recipe(new UpgradeTransitiveDependencyVersion(logger, "~1.5.0", null)),
           packageJson(manifest(), withOverride(Npm, logger, "~1.5.0"), marker(logger, Npm)),
-          packageLock(lock(logger, "1.4.1"), null));
+          // The lock is present because the recipe needs one, and unasserted because what
+          // happens to it is the scenario's question rather than this one's.
+          packageLock(lock(logger, "1.4.1"), null, spec -> spec.after(actual -> actual)));
     }
 
     /**
