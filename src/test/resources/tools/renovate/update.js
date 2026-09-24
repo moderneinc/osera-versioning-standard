@@ -29,20 +29,25 @@ async function main() {
         if ((dep.packageName ?? dep.depName) !== target.packageName) {
           continue;
         }
+        // lookupUpdates is called directly, below the layer that applies Renovate's default
+        // config, so a default only applies here if it is passed. This script therefore holds no
+        // configuration of its own: every option comes from the column, which is the only way a
+        // column claiming to represent Renovate's shipped defaults can be checked against them.
         const lookup = await lookupUpdates({
           ...dep,
           packageName: target.packageName,
           versioning: request.versioning,
-          rangeStrategy: 'replace',
           allowedVersions: target.allowedVersions,
           registryUrls: request.registryUrls,
-          separateMinorPatch: true,
-          updatePinnedDependencies: true,
-          respectLatest: false,
+          ...request.lookup,
         }).then(unwrap);
 
+        // Renovate opens a pull request per update, so a lookup can return several. This applies
+        // the first and records them all, because what decides a cell is whether any of them got there.
         const update = (lookup.updates ?? [])[0];
-        const entry = { file: packageFile.packageFile, dep: target.packageName, skipReason: lookup.skipReason, update, dependency: dep };
+        const entry = { file: packageFile.packageFile, dep: target.packageName, skipReason: lookup.skipReason,
+          update, offered: (lookup.updates ?? []).map((u) => ({ type: u.updateType, newValue: u.newValue })),
+          dependency: dep };
         log.push(entry);
         if (!update) {
           continue;

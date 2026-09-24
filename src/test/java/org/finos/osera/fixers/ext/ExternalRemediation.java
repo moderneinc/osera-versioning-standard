@@ -9,6 +9,8 @@ import org.openrewrite.Tree;
 import org.openrewrite.TreeVisitor;
 import org.openrewrite.gradle.GradleParser;
 import org.openrewrite.groovy.tree.G;
+import org.openrewrite.json.JsonParser;
+import org.openrewrite.json.tree.Json;
 import org.openrewrite.kotlin.tree.K;
 import org.openrewrite.maven.MavenParser;
 import org.openrewrite.properties.PropertiesParser;
@@ -17,6 +19,8 @@ import org.openrewrite.toml.TomlParser;
 import org.openrewrite.toml.tree.Toml;
 import org.openrewrite.xml.XmlParser;
 import org.openrewrite.xml.tree.Xml;
+import org.openrewrite.yaml.YamlParser;
+import org.openrewrite.yaml.tree.Yaml;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -115,6 +119,7 @@ public final class ExternalRemediation extends ScanningRecipe<ExternalRemediatio
             // them — its script, its cache — is not something the tool then tries to remediate.
             Path directory = work.resolve("sources");
             try {
+                Files.createDirectories(directory);
                 for (Map.Entry<Path, SourceFile> source : before.entrySet()) {
                     Path file = directory.resolve(source.getKey());
                     Files.createDirectories(file.getParent());
@@ -166,24 +171,23 @@ public final class ExternalRemediation extends ScanningRecipe<ExternalRemediatio
             // A pom without its resolution result is not something the Maven assertions accept.
             case Xml.Document ignored when source.getSourcePath().endsWith("pom.xml") -> MavenParser.builder().build();
             case Xml.Document ignored -> XmlParser.builder().build();
+            // A package.json's resolution marker is supplied by the test rather than derived by a
+            // parser, so the plain JSON parser is enough and no Node process has to start.
+            case Json.Document ignored -> JsonParser.builder().build();
             case G.CompilationUnit ignored -> GradleParser.builder().build();
             case K.CompilationUnit ignored -> GradleParser.builder().build();
             case Properties.File ignored -> PropertiesParser.builder().build();
             case Toml.Document ignored -> TomlParser.builder().build();
+            case Yaml.Documents ignored -> YamlParser.builder().build();
             default -> throw new IllegalStateException("No parser for " + source.getClass().getSimpleName() +
                                                        "; add one when the TCK grows a source type");
         };
     }
 
-    private static Path createTemporaryDirectory() {
-        try {
-            return Files.createTempDirectory("osera-remediation");
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
     private static void deleteRecursively(Path directory) {
+        if (!Files.exists(directory)) {
+            return;
+        }
         try (Stream<Path> paths = Files.walk(directory)) {
             paths.sorted(Comparator.reverseOrder()).forEach(path -> {
                 try {
@@ -192,6 +196,14 @@ public final class ExternalRemediation extends ScanningRecipe<ExternalRemediatio
                     throw new UncheckedIOException(e);
                 }
             });
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private static Path createTemporaryDirectory() {
+        try {
+            return Files.createTempDirectory("osera-remediation");
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

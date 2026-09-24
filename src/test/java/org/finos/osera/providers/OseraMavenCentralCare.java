@@ -25,7 +25,7 @@ import java.util.regex.Pattern;
  * {@code osera-NNNNN} rather than of the version's numeric parts.
  */
 @Suite
-@SelectPackages("org.finos.osera")
+@SelectPackages("org.finos.osera.buildtools")
 public final class OseraMavenCentralCare extends ProviderVersioning {
 
     private static final Pattern NUMERIC = Pattern.compile("\\d+(\\.\\d+)*");

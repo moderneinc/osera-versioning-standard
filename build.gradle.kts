@@ -39,7 +39,10 @@ dependencies {
     implementation("org.openrewrite:rewrite-groovy")
     implementation("org.openrewrite:rewrite-kotlin")
     implementation("org.openrewrite:rewrite-toml")
+    implementation("org.openrewrite:rewrite-javascript")
+    implementation("org.openrewrite:rewrite-json")
     implementation("org.openrewrite:rewrite-properties")
+    implementation("org.openrewrite:rewrite-yaml")
     implementation("org.openrewrite.recipe:rewrite-java-dependencies:latest.integration")
 
     testImplementation(platform("org.junit:junit-bom:latest.release"))
@@ -51,6 +54,7 @@ dependencies {
     testImplementation("org.jspecify:jspecify:latest.release")
     testImplementation("com.squareup.okhttp3:mockwebserver3:latest.release")
     testImplementation("com.squareup.okhttp3:okhttp-tls:latest.release")
+    testImplementation("org.apache.commons:commons-compress:latest.release")
     // Real Gradle builds behind GradleTest's markers; the model compiles against gradleApi(), so we supply it too.
     testImplementation("org.openrewrite.gradle.tooling:model:latest.integration")
     testImplementation(gradleApi())
@@ -74,17 +78,22 @@ val tck by tasks.registering {
 }
 tasks.check { dependsOn(tck) }
 
-listOf("OseraMavenCentralCare", "SemverV2BuildMetadata").forEach { scheme ->
-    val run = tasks.register<Test>("tck$scheme") {
-        description = "Runs the backpatch TCK against $scheme"
+listOf(
+    "providers.OseraMavenCentralCare",
+    "providers.SemverV2BuildMetadata",
+    "providers.npm.NextPatchPrerelease"
+).forEach { scheme ->
+    val name = scheme.substringAfterLast('.')
+    val run = tasks.register<Test>("tck$name") {
+        description = "Runs the backpatch TCK against $name"
         group = "verification"
         testClassesDirs = sourceSets.test.get().output.classesDirs
         classpath = sourceSets.test.get().runtimeClasspath
         useJUnitPlatform()
         maxHeapSize = "2g"
-        filter.includeTestsMatching("org.finos.osera.providers.$scheme")
-        reports.html.outputLocation = layout.buildDirectory.dir("reports/tck/$scheme")
-        reports.junitXml.outputLocation = layout.buildDirectory.dir("test-results/tck/$scheme")
+        filter.includeTestsMatching("org.finos.osera.$scheme")
+        reports.html.outputLocation = layout.buildDirectory.dir("reports/tck/$name")
+        reports.junitXml.outputLocation = layout.buildDirectory.dir("test-results/tck/$name")
         // Failures are the evaluation, not a broken build.
         ignoreFailures = true
     }
@@ -120,6 +129,11 @@ fun tool(name: String, vararg candidates: String) = providers.gradleProperty("os
 val node = tool("node", "node")
 val npm = tool("npm", "npm")
 val ruby = tool("ruby", "/usr/local/opt/ruby/bin/ruby", "/opt/homebrew/opt/ruby/bin/ruby", "ruby")
+// Yarn Berry is reached through corepack: a Homebrew yarn on the PATH is Classic and shadows the
+// shim. Classic is wanted too, for the resolutions key form it is reported to mis-parse.
+val pnpm = tool("pnpm", "pnpm")
+val yarn = tool("yarn", "yarn")
+val corepack = tool("corepack", "corepack")
 
 val installRenovate by tasks.registering(Exec::class) {
     description = "Installs Renovate, one half of the remediation matrix that is not a recipe"
@@ -144,25 +158,46 @@ val installRenovate by tasks.registering(Exec::class) {
     commandLine(npm.getOrElse("npm"), "install", "--silent", "--no-audit", "--no-fund")
 }
 
+// macOS ships Ruby 2.6, which the Dependabot gems reject. Testing only that a ruby exists lets the
+// gem install fail the whole build rather than skipping the cells it feeds.
+fun rubyIsUsable(path: String): Boolean = runCatching {
+    ProcessBuilder(path, "-e", "exit(RUBY_VERSION.split('.')[0].to_i >= 3 ? 0 : 1)")
+        .redirectErrorStream(true)
+        .start()
+        .let { it.inputStream.readAllBytes(); it.waitFor() == 0 }
+}.getOrDefault(false)
+
 val installDependabot by tasks.registering(Exec::class) {
-    description = "Installs Dependabot's Maven and Gradle gems, the other half"
-    onlyIf { ruby.isPresent }
+    description = "Installs Dependabot's Maven, Gradle and npm gems, the other half"
+    onlyIf { ruby.isPresent && rubyIsUsable(ruby.get()) }
     outputs.dir(dependabotGems)
     environment("GEM_HOME", dependabotGems.get().asFile.absolutePath)
     // The gem next to the chosen ruby, not whichever one is first on the path.
     commandLine(
         ruby.map { File(File(it).parentFile, "gem").path }.getOrElse("gem"),
         "install", "--no-document", "--silent",
-        "dependabot-maven:$dependabotVersion", "dependabot-gradle:$dependabotVersion"
+        "dependabot-maven:$dependabotVersion", "dependabot-gradle:$dependabotVersion",
+        "dependabot-npm_and_yarn:$dependabotVersion"
     )
 }
 
 tasks.withType<Test>().configureEach {
+    // npm's own resolution, and the npx that starts the recipe's RPC server, read config from the
+    // file named here. MockNpmRegistry writes its URL into it once it has a port; the path has to
+    // be fixed because the environment of a child process cannot be changed after the JVM starts.
+    val npmrc = layout.buildDirectory.file("npm/osera.npmrc").get().asFile
+    doFirst { npmrc.parentFile.mkdirs() }
+    systemProperty("osera.npmrc", npmrc.absolutePath)
+    environment("npm_config_userconfig", npmrc.absolutePath)
     dependsOn(installRenovate, installDependabot)
     systemProperty("osera.renovate", renovateHome.get().asFile.absolutePath)
     systemProperty("osera.dependabot", dependabotGems.get().asFile.absolutePath)
     // What each external tool decided, in its own words, next to the report that summarises it.
     systemProperty("osera.tools.log", layout.buildDirectory.dir("tool-logs").get().asFile.absolutePath)
+    npm.orNull?.let { systemProperty("osera.npm", it) }
+    pnpm.orNull?.let { systemProperty("osera.pnpm", it) }
+    yarn.orNull?.let { systemProperty("osera.yarn", it) }
+    corepack.orNull?.let { systemProperty("osera.corepack", it) }
     node.orNull?.let { systemProperty("osera.node", it) }
     ruby.orNull?.let { systemProperty("osera.ruby", it) }
 }

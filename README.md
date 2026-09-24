@@ -156,7 +156,7 @@ work today for the drafted spelling.
 
 - [`OpenRewriteSelectorTest`](src/test/java/org/finos/osera/versioning/ordering/OpenRewriteSelectorTest.java)
 
-## A spelling to rule out
+## A spelling to rule out on the JVM
 
 `1.0.2-osera.1` — publishing the patch as a pre-release of the maintainer's *next* version — is
 worse than either candidate and is included so it can be dismissed with evidence. Maven ranks it
@@ -164,6 +164,15 @@ worse than either candidate and is included so it can be dismissed with evidence
 a pre-release. A producer using it would displace releases they do not own. Gradle ranks it below.
 Renovate's Gradle module agrees with Gradle; Dependabot's `Gradle::Version` does not, and would offer
 a Gradle project an upgrade its own build ranks as a downgrade.
+
+That verdict is about the JVM, and it rests on Maven ranking `-osera` above the version it hangs
+off rather than below it. npm inverts that, because `node-semver` implements SemVer 2.0.0 §11 and
+the JVM's build tools do not: a prerelease sorts below its own version there, so a prerelease of
+the maintainer's *next* patch lands above the release being patched and below the maintainer's
+eventual fix, which is what a backpatch needs. `1.4.2-osera-00001` is the shape proposed for npm,
+and it rests on exactly the rule this section shows Maven and Gradle failing to follow.
+[Chapter 1 of the manual](docs/manual/01-osera-versioning-standard.md) has that argument, and the
+alternatives measured against it.
 
 ## What the evidence supports
 
@@ -195,7 +204,9 @@ bot PR — because that is where the two schemes behave differently, and it is w
 
 ## What this repository does not show
 
-- **Only the JVM.** npm, PyPI, Go and containers have different resolvers and different answers.
+- **The JVM and npm.** PyPI, Go and containers have different resolvers and different answers.
+  What the npm toolchain does is measured too, and written up in
+  [the manual](docs/manual/README.md).
 - **Versions are pinned:** OpenRewrite 8.90.4, Gradle 9.7.1, `maven-artifact` 3.9.16, Renovate
   41.173.1, Dependabot 0.394.0. Findings 1 and 2 are ordering semantics and stable; finding 4 is a
   bug that may be fixed.
