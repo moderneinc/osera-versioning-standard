@@ -158,10 +158,11 @@ val installRenovate by tasks.registering(Exec::class) {
     commandLine(npm.getOrElse("npm"), "install", "--silent", "--no-audit", "--no-fund")
 }
 
-// macOS ships Ruby 2.6, which the Dependabot gems reject. Testing only that a ruby exists lets the
-// gem install fail the whole build rather than skipping the cells it feeds.
+// macOS ships Ruby 2.6 and Ubuntu 24.04 ships 3.2, both of which the Dependabot gems reject: they
+// require 3.3. Testing only that a ruby exists lets the gem install fail the whole build rather
+// than skipping the cells it feeds.
 fun rubyIsUsable(path: String): Boolean = runCatching {
-    ProcessBuilder(path, "-e", "exit(RUBY_VERSION.split('.')[0].to_i >= 3 ? 0 : 1)")
+    ProcessBuilder(path, "-e", "exit(Gem::Version.new(RUBY_VERSION) >= Gem::Version.new('3.3') ? 0 : 1)")
         .redirectErrorStream(true)
         .start()
         .let { it.inputStream.readAllBytes(); it.waitFor() == 0 }
