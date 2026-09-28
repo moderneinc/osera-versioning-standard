@@ -4,7 +4,7 @@ import org.junit.platform.suite.api.SelectPackages;
 import org.junit.platform.suite.api.Suite;
 
 @Suite
-@SelectPackages("org.finos.osera")
+@SelectPackages("org.finos.osera.buildtools")
 public final class SemverV2BuildMetadata extends ProviderVersioning {
     @Override
     protected String version(String version, String producer, int patchSequence) {
