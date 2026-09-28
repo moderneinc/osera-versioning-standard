@@ -207,7 +207,7 @@ bot PR — because that is where the two schemes behave differently, and it is w
 - **The JVM and npm.** PyPI, Go and containers have different resolvers and different answers.
   What the npm toolchain does is measured too, and written up in
   [the manual](docs/manual/README.md).
-- **Versions are pinned:** OpenRewrite 8.90.4, Gradle 9.7.1, `maven-artifact` 3.9.16, Renovate
+- **Versions are pinned:** OpenRewrite 8.90.4, Gradle 9.8.0, `maven-artifact` 3.9.16, Renovate
   41.173.1, Dependabot 0.394.0. Findings 1 and 2 are ordering semantics and stable; finding 4 is a
   bug that may be fixed.
 - **Ordering, not resolution, for real Maven.** Maven ordering is measured with Maven's own

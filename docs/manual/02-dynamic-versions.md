@@ -47,7 +47,7 @@ on `.`, `-` and `+`, compares them pairwise, and when one version turns out to b
 extra parts it decides on the first extra part alone, so that a numeric part makes the longer
 version greater and a word Gradle does not recognize makes it lesser. The words it recognizes are
 `dev`, `rc`, `snapshot`, `final`, `ga`, `release` and `sp`, which is the whole of `SPECIAL_MEANINGS`
-in `StaticVersionComparator` in the 9.7.1 distribution these tests run against. It has never heard
+in `StaticVersionComparator` in the 9.8.0 distribution these tests run against. It has never heard
 of `osera`.
 
 So `2.14.1.1-osera-00001` is `2.14.1` plus `1`, a number, and it wins. `4.1.68.Final-osera-00001`

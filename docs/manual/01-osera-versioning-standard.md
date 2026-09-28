@@ -131,7 +131,7 @@ redirect in front, and goes with it.
 Everything in the next three chapters came out of `./gradlew tck` in this repository, which drives
 the real implementations rather than reading their documentation.
 
-On the JVM that is Maven's resolver, a real Gradle 9.7.1 build through the tooling API,
+On the JVM that is Maven's resolver, a real Gradle 9.8.0 build through the tooling API,
 OpenRewrite's `UpgradeDependencyVersion` and `UpgradeTransitiveDependencyVersion`, Renovate
 41.173.1 in its own Node process, and Dependabot 0.394.0 in its own Ruby process, against a mock
 Maven 2 repository serving HTTPS on a port the test picks, alongside real Maven Central.
