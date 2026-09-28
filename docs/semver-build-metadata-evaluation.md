@@ -13,7 +13,7 @@ rationale says ordering should not be relied on, and this is what that position 
 write it down.
 
 We ran it through the same suite as the format we chose (`./gradlew tck` in this repository, which
-drives Maven's resolver, a real Gradle 9.7.1 build through the tooling API, OpenRewrite's upgrade
+drives Maven's resolver, a real Gradle 9.8.0 build through the tooling API, OpenRewrite's upgrade
 recipes, Renovate 41.173.1 and Dependabot 0.394.0 in their own processes, against a mock Maven 2
 repository alongside real Maven Central). It is still in the suite today, as the scheme
 `SemverV2BuildMetadata`.

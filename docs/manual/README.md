@@ -10,7 +10,7 @@ This book is the evidence behind those choices, which is to say what the toolcha
 with each candidate rather than what their comparators are documented to do.
 
 Every cell in every table came out of `./gradlew tck` in this repository. It drives the real
-implementations: Maven's resolver, a real Gradle 9.7.1 build through the tooling API, npm 11.4,
+implementations: Maven's resolver, a real Gradle 9.8.0 build through the tooling API, npm 11.4,
 pnpm 9.15, Yarn Berry 4.18 and Yarn Classic 1.22, OpenRewrite's dependency recipes, Renovate
 41.173.1 in its own Node process and Dependabot 0.394.0 in its own Ruby process. They run against a
 mock Maven 2 repository serving HTTPS alongside real Maven Central, and a mock npm registry that
