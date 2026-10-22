@@ -2,12 +2,12 @@ package org.finos.osera.buildtools;
 
 import org.finos.osera.providers.ProviderVersioning;
 import org.openrewrite.ExecutionContext;
-import org.openrewrite.InMemoryExecutionContext;
 import org.openrewrite.Parser;
 import org.openrewrite.maven.MavenExecutionContextView;
 import org.openrewrite.maven.MavenSettings;
 import org.openrewrite.test.RecipeSpec;
 import org.openrewrite.test.RewriteTest;
+import org.openrewrite.test.SourceSpec;
 
 /**
  * Points Maven's resolution at the scheme's mock repository. The mock's URL is only known at
@@ -20,7 +20,7 @@ interface MavenBuild extends RewriteTest {
 
     @Override
     default void defaults(RecipeSpec spec) {
-        ExecutionContext ctx = new InMemoryExecutionContext();
+        ExecutionContext ctx = defaultExecutionContext(new SourceSpec[0]);
         spec.executionContext(MavenExecutionContextView.view(ctx).setMavenSettings(
           //language=xml
           MavenSettings.parse(Parser.Input.fromString(String.format("""
