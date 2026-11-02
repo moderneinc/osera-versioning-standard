@@ -73,7 +73,7 @@ tasks.test {
     ignoreFailures = true
 }
 
-val tck by tasks.registering {
+val tck = tasks.register("tck") {
     description = "Runs the backpatch TCK once per provider versioning scheme"
     group = "verification"
 }
@@ -136,7 +136,7 @@ val pnpm = tool("pnpm", "pnpm")
 val yarn = tool("yarn", "yarn")
 val corepack = tool("corepack", "corepack")
 
-val installRenovate by tasks.registering(Exec::class) {
+val installRenovate = tasks.register<Exec>("installRenovate") {
     description = "Installs Renovate, one half of the remediation matrix that is not a recipe"
     onlyIf { npm.isPresent }
     outputs.dir(renovateHome)
@@ -169,7 +169,7 @@ fun rubyIsUsable(path: String): Boolean = runCatching {
         .let { it.inputStream.readAllBytes(); it.waitFor() == 0 }
 }.getOrDefault(false)
 
-val installDependabot by tasks.registering(Exec::class) {
+val installDependabot = tasks.register<Exec>("installDependabot") {
     description = "Installs Dependabot's Maven, Gradle and npm gems, the other half"
     onlyIf { ruby.isPresent && rubyIsUsable(ruby.get()) }
     outputs.dir(dependabotGems)
