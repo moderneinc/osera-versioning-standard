@@ -147,14 +147,23 @@ public final class ExternalRemediation extends ScanningRecipe<ExternalRemediatio
          * changed, because a child pom that cannot see its parent resolves to nothing.
          */
         private Map<Path, SourceFile> parse(Map<Path, String> text, ExecutionContext ctx) {
-            Map<Parser, List<Parser.Input>> byParser = new LinkedHashMap<>();
-            before.forEach((path, source) ->
-              // The path decides which Gradle DSL a build file is parsed as, so it has to survive.
-              byParser.computeIfAbsent(parserFor(source), parser -> new ArrayList<>())
-                .add(Parser.Input.fromString(path, text.get(path))));
+            // A parser is not usable as its own key: none of them define equality, so a fresh
+            // instance per source puts every file in a group of its own. The DSL name is what
+            // OpenRewrite itself picks a parser by, so it keeps a pom apart from plain XML while
+            // holding both Gradle DSLs together, which GradleParser separates again by path.
+            record Group(Parser.Builder parser, List<Parser.Input> inputs) {
+            }
+
+            Map<String, Group> byDsl = new LinkedHashMap<>();
+            before.forEach((path, source) -> {
+                Parser.Builder parser = parserFor(source);
+                // The path decides which Gradle DSL a build file is parsed as, so it has to survive.
+                byDsl.computeIfAbsent(parser.getDslName(), dsl -> new Group(parser, new ArrayList<>()))
+                  .inputs().add(Parser.Input.fromString(path, text.get(path)));
+            });
 
             Map<Path, SourceFile> remediated = new LinkedHashMap<>();
-            byParser.forEach((parser, inputs) -> parser.parseInputs(inputs, null, ctx).forEach(parsed -> {
+            byDsl.forEach((dsl, group) -> group.parser().build().parseInputs(group.inputs(), null, ctx).forEach(parsed -> {
                 SourceFile original = before.get(parsed.getSourcePath());
                 if (original != null && !parsed.printAll().equals(original.printAll())) {
                     // An id is what a run tracks a source file by, so a fresh one reads as a
@@ -166,19 +175,19 @@ public final class ExternalRemediation extends ScanningRecipe<ExternalRemediatio
         }
     }
 
-    private static Parser parserFor(SourceFile source) {
+    private static Parser.Builder parserFor(SourceFile source) {
         return switch (source) {
             // A pom without its resolution result is not something the Maven assertions accept.
-            case Xml.Document ignored when source.getSourcePath().endsWith("pom.xml") -> MavenParser.builder().build();
-            case Xml.Document ignored -> XmlParser.builder().build();
+            case Xml.Document ignored when source.getSourcePath().endsWith("pom.xml") -> MavenParser.builder();
+            case Xml.Document ignored -> XmlParser.builder();
             // A package.json's resolution marker is supplied by the test rather than derived by a
             // parser, so the plain JSON parser is enough and no Node process has to start.
-            case Json.Document ignored -> JsonParser.builder().build();
-            case G.CompilationUnit ignored -> GradleParser.builder().build();
-            case K.CompilationUnit ignored -> GradleParser.builder().build();
-            case Properties.File ignored -> PropertiesParser.builder().build();
-            case Toml.Document ignored -> TomlParser.builder().build();
-            case Yaml.Documents ignored -> YamlParser.builder().build();
+            case Json.Document ignored -> JsonParser.builder();
+            case G.CompilationUnit ignored -> GradleParser.builder();
+            case K.CompilationUnit ignored -> GradleParser.builder();
+            case Properties.File ignored -> PropertiesParser.builder();
+            case Toml.Document ignored -> TomlParser.builder();
+            case Yaml.Documents ignored -> YamlParser.builder();
             default -> throw new IllegalStateException("No parser for " + source.getClass().getSimpleName() +
                                                        "; add one when the TCK grows a source type");
         };
